@@ -1,0 +1,6 @@
+{
+  "name": "Calculadora de Feira",
+  "description": "Calculadora profissional para feiras. Calcule por peso, multiplique itens, faça contas comuns e salve suas compras diretamente no celular.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}

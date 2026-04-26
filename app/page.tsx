@@ -1,0 +1,783 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ShoppingCart, Calculator as CalcIcon, Scale, List as ListIcon, Trash2, Plus, X, Layers, Barcode, CheckCircle, Clock, Search, ChevronDown, ChevronUp, CheckSquare, Square, Check } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+
+interface CartItem {
+  id: string;
+  name: string;
+  type: 'peso' | 'unidade' | 'calc';
+  details: string;
+  value: number;
+  timestamp: number;
+}
+
+interface Purchase {
+  id: string;
+  timestamp: number;
+  total: number;
+  items: CartItem[];
+}
+
+const formatCurrencyInput = (digits: string) => {
+  if (!digits) return '';
+  const num = parseInt(digits, 10) / 100;
+  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+};
+
+const formatIntegerInput = (digits: string) => {
+  if (!digits) return '';
+  const num = parseInt(digits, 10);
+  return new Intl.NumberFormat('pt-BR').format(num);
+};
+
+const formatCalcDisplay = (digitsStr: string) => {
+  let isNeg = false;
+  let str = digitsStr;
+  if (str.startsWith('-')) {
+      isNeg = true;
+      str = str.substring(1);
+  }
+  const num = parseInt(str || '0', 10) / 100;
+  return (isNeg ? '-' : '') + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+};
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<'peso' | 'unidade' | 'calc' | 'lista'>('calc');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [history, setHistory] = useState<Purchase[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [scannedName, setScannedName] = useState('');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('@CalculadoraFeira:cart');
+    const savedHistory = localStorage.getItem('@CalculadoraFeira:history');
+    
+    if (saved) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCart(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load cart', e);
+      }
+    }
+    
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error('Failed to load history', e);
+      }
+    }
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem('@CalculadoraFeira:cart', JSON.stringify(cart));
+      localStorage.setItem('@CalculadoraFeira:history', JSON.stringify(history));
+    }
+  }, [cart, history, isHydrated]);
+
+  const total = cart.reduce((acc, item) => acc + item.value, 0);
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  };
+
+  const parseInput = (val: string) => {
+    const parsed = parseFloat(val.replace(',', '.'));
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const addToCart = (name: string, type: 'peso' | 'unidade' | 'calc', details: string, value: number) => {
+    if (value <= 0) return;
+    const newItem: CartItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: name || (type === 'peso' ? 'Produto por Peso' : type === 'unidade' ? 'Produto' : 'Cálculo Avulso'),
+      type,
+      details,
+      value,
+      timestamp: Date.now()
+    };
+    setCart([newItem, ...cart]);
+    setActiveTab('lista');
+  };
+
+  const removeFromCart = (id: string) => {
+    setCart(cart.filter(item => item.id !== id));
+  };
+
+  const removeMultipleFromCart = (ids: string[]) => {
+    setCart(cart.filter(item => !ids.includes(item.id)));
+  };
+
+  const clearCart = () => {
+    if (confirm('Tem certeza que deseja apagar toda a lista de compras?')) {
+      setCart([]);
+    }
+  };
+
+  const clearHistory = () => {
+    if (confirm('Tem certeza que deseja apagar todo o histórico de compras?')) {
+      setHistory([]);
+    }
+  };
+
+  const finishShopping = () => {
+    if (cart.length === 0) return;
+    // eslint-disable-next-line react-hooks/purity
+    const id = Math.random().toString(36).substr(2, 9);
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
+    const newPurchase: Purchase = {
+      id,
+      timestamp,
+      total,
+      items: [...cart],
+    };
+    setHistory([newPurchase, ...history]);
+    setCart([]);
+    alert('Feira finalizada e salva no histórico!');
+  };
+
+  return (
+    <div className="min-h-[100dvh] bg-[#0F0F11] text-white font-sans flex flex-col pb-[90px]">
+      <header className="sticky top-0 z-30 bg-[#0F0F11]/90 backdrop-blur-md border-b border-[#2D2E33] p-4 flex justify-between items-center pt-safe-top">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 flex items-center justify-center bg-[#C1FF72] text-[#0F0F11] font-extrabold rounded-lg text-lg leading-none">
+            F
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-white">
+            Calculadora <span className="font-light opacity-60 text-white">PRO</span>
+          </h1>
+        </div>
+      </header>
+
+      <main className="flex-1 w-full max-w-md mx-auto p-4 pt-4 flex flex-col gap-6">
+        <div className="bg-black border-y sm:border sm:rounded-xl border-[#2D2E33] p-3 -mx-4 sm:mx-0 flex flex-row items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-[#A1A1AA] mb-1 uppercase tracking-[0.05em] font-semibold">Total da Compra</span>
+            <div className="text-[28px] font-mono font-bold text-[#C1FF72] tracking-tighter leading-none">
+              {formatCurrency(total)}
+            </div>
+          </div>
+          <div className="text-[#A1A1AA] text-[10px] uppercase text-right">
+            {cart.length} {cart.length === 1 ? 'item' : 'itens'}
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {activeTab === 'peso' && <WeightCalculator key="peso" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
+          {activeTab === 'unidade' && <UnitCalculator key="unidade" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
+          {activeTab === 'calc' && <StandardCalculator key="calc" onAdd={addToCart} format={formatCurrency} />}
+          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
+        </AnimatePresence>
+      </main>
+
+      <nav className="fixed bottom-0 w-full bg-[#0F0F11] border-t border-[#2D2E33] z-40 pb-safe">
+        <div className="max-w-md mx-auto flex justify-around items-center px-2 py-2">
+          <NavItem active={activeTab === 'calc'} onClick={() => setActiveTab('calc')} icon={<CalcIcon size={20} />} label="Calc" />
+          <NavItem active={activeTab === 'peso'} onClick={() => setActiveTab('peso')} icon={<Scale size={20} />} label="Peso" />
+          <NavItem active={activeTab === 'unidade'} onClick={() => setActiveTab('unidade')} icon={<Layers size={20} />} label="Unid" />
+          <NavItem active={activeTab === 'lista'} onClick={() => setActiveTab('lista')} icon={<ShoppingCart size={20} />} label="Lista" badge={cart.length} />
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+function NavItem({ active, onClick, icon, label, badge }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, badge?: number }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-300 ${active ? 'text-[#C1FF72]' : 'text-[#A1A1AA] hover:text-white'}`}
+    >
+      {icon}
+      <span className="text-[10px] font-semibold mt-1 uppercase tracking-wider">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute top-0 right-1 bg-[#FF5555] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-sm">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
+      {active && <div className="absolute -top-2 w-8 h-[2px] bg-[#C1FF72] rounded-full" />}
+    </button>
+  );
+}
+
+function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, format: any, parse: any, scannedName?: string }) {
+  const [priceKg, setPriceKg] = useState('');
+  const [weight, setWeight] = useState('');
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (scannedName) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setName(scannedName);
+    }
+  }, [scannedName]);
+
+  const p = priceKg ? parseInt(priceKg) / 100 : 0;
+  const w = weight ? parseInt(weight) : 0;
+  const calculated = p * (w / 1000);
+
+  const handleAdd = () => {
+    if (calculated > 0) {
+      onAdd(name, 'peso', `${w}g @ ${format(p)}/kg`, calculated);
+      setPriceKg(''); setWeight(''); setName('');
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
+      <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Pesagem e Conversão</span>
+        <span className="bg-[#C1FF72] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">PESO</span>
+      </div>
+      
+      <div className="p-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Preço por Quilo (R$/kg)</label>
+          <input 
+            type="text" inputMode="numeric" placeholder="00,00" value={formatCurrencyInput(priceKg)} onChange={(e) => setPriceKg(e.target.value.replace(/\D/g, ''))}
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+          />
+        </div>
+        
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Peso do Produto (Gramas)</label>
+          <input 
+            type="text" inputMode="numeric" placeholder="0" value={formatIntegerInput(weight)} onChange={(e) => setWeight(e.target.value.replace(/\D/g, ''))}
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+          />
+        </div>
+        
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Nome do Produto (Opcional)</label>
+          <input 
+            type="text" placeholder="" value={name} onChange={(e) => setName(e.target.value)}
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[14px] text-white outline-none focus:border-[#C1FF72] transition-colors placeholder:text-[#2D2E33]"
+          />
+        </div>
+
+        <div className="bg-[#C1FF72]/5 border border-dashed border-[#C1FF72] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
+          <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-1">Valor Estimado</div>
+          <div className="text-[32px] font-mono text-[#C1FF72] font-bold tracking-tighter leading-none">
+            {format(calculated)}
+          </div>
+        </div>
+
+        <button 
+          onClick={handleAdd}
+          disabled={calculated <= 0}
+          className="mt-1 bg-[#C1FF72] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
+        >
+          ADICIONAR AO CARRINHO
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, format: any, parse: any, scannedName?: string }) {
+  const [price, setPrice] = useState('');
+  const [qtd, setQtd] = useState('');
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (scannedName) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setName(scannedName);
+    }
+  }, [scannedName]);
+
+  const p = price ? parseInt(price) / 100 : 0;
+  const q = qtd ? parseInt(qtd) : 0;
+  const calculated = p * q;
+
+  const handleAdd = () => {
+    if (calculated > 0) {
+      onAdd(name, 'unidade', `${q}x @ ${format(p)}/un`, calculated);
+      setPrice(''); setQtd(''); setName('');
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
+      <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Multiplicador de Unidades</span>
+        <span className="bg-[#C1FF72] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">UNID</span>
+      </div>
+      
+      <div className="p-4 flex flex-col gap-3">
+        <div className="flex gap-2.5">
+          <div className="flex flex-col gap-1.5 flex-[1]">
+             <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Qtd</label>
+             <input 
+               type="text" inputMode="numeric" placeholder="0" value={formatIntegerInput(qtd)} onChange={(e) => setQtd(e.target.value.replace(/\D/g, ''))}
+               className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+             />
+          </div>
+          <div className="flex flex-col gap-1.5 flex-[2]">
+             <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Valor Unt</label>
+             <input 
+               type="text" inputMode="numeric" placeholder="00,00" value={formatCurrencyInput(price)} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
+               className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+             />
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Nome do Produto (Opcional)</label>
+          <input 
+            type="text" placeholder="" value={name} onChange={(e) => setName(e.target.value)}
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[14px] text-white outline-none focus:border-[#C1FF72] transition-colors placeholder:text-[#2D2E33]"
+          />
+        </div>
+
+        <div className="bg-[#C1FF72]/5 border border-dashed border-[#C1FF72] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
+          <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-1">Valor Estimado</div>
+          <div className="text-[32px] font-mono text-[#C1FF72] font-bold tracking-tighter leading-none">
+            {format(calculated)}
+          </div>
+        </div>
+
+        <button 
+          onClick={handleAdd}
+          disabled={calculated <= 0}
+          className="mt-1 bg-[#C1FF72] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
+        >
+          ADICIONAR AO CARRINHO
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
+  const [display, setDisplay] = useState('0');
+  const [prev, setPrev] = useState<number | null>(null);
+  const [operator, setOperator] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  const [themeColor, setThemeColor] = useState('#C1FF72');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
+  const colors = ['#C1FF72', '#00E5FF', '#FF00FF', '#FFEA00', '#FF6D00'];
+
+  const inputDigit = (d: string) => {
+    if (waiting) {
+      setDisplay(d);
+      setWaiting(false);
+    } else {
+      setDisplay(display === '0' ? d : display + d);
+    }
+  };
+
+  const inputDoubleZero = () => {
+    if (waiting) {
+      setDisplay('0');
+      setWaiting(false);
+    } else {
+      setDisplay(display === '0' ? '0' : display + '00');
+    }
+  };
+
+  const clear = () => {
+    setDisplay('0');
+    setPrev(null);
+    setOperator(null);
+    setWaiting(false);
+  };
+
+  const performOp = (nextOp: string) => {
+    const inputValue = parseInt(display || '0', 10) / 100;
+    if (prev == null) {
+      setPrev(inputValue);
+    } else if (operator) {
+      const currentVal = prev || 0;
+      let newValue = currentVal;
+      if (operator === '+') newValue = currentVal + inputValue;
+      else if (operator === '-') newValue = currentVal - inputValue;
+      else if (operator === '*') newValue = currentVal * inputValue;
+      else if (operator === '/') newValue = inputValue !== 0 ? currentVal / inputValue : 0;
+      
+      setPrev(newValue);
+      setDisplay(Math.round(newValue * 100).toString());
+    }
+    setWaiting(true);
+    setOperator(nextOp);
+  };
+
+  const calculate = () => {
+    if (operator && !waiting) {
+      performOp(operator);
+      setOperator(null);
+      setPrev(null);
+    }
+  };
+
+  const valNum = parseInt(display || '0', 10) / 100;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
+      <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Calculadora Principal</span>
+        <div className="relative">
+          <button 
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="text-[#0F0F11] text-[11px] font-extrabold px-3 py-1.5 rounded border border-transparent hover:brightness-110 active:scale-95 transition-all tracking-wider"
+            style={{ backgroundColor: themeColor }}
+          >
+            COLOR
+          </button>
+          
+          <AnimatePresence>
+            {showColorPicker && (
+              <motion.div 
+                initial={{ opacity: 0, y: 5, scale: 0.9 }} 
+                animate={{ opacity: 1, y: 0, scale: 1 }} 
+                exit={{ opacity: 0, y: 5, scale: 0.9 }}
+                className="absolute right-0 top-full mt-2 bg-[#1A1B1E] border border-[#2D2E33] rounded-lg p-2 flex gap-2 z-50 shadow-2xl"
+              >
+                {colors.map(c => (
+                  <button 
+                    key={c} 
+                    onClick={() => { setThemeColor(c); setShowColorPicker(false); }}
+                    className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+                    style={{ backgroundColor: c, borderColor: themeColor === c ? 'white' : 'transparent' }}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="bg-black p-3 text-right border-b border-[#2D2E33]">
+        <div className="text-[12px] opacity-50 mb-1 font-mono text-[#A1A1AA] h-4 leading-none">
+          {prev !== null ? `${format(prev)} ${operator}` : ''}
+        </div>
+        <div className="text-[32px] font-mono overflow-x-auto overflow-y-hidden whitespace-nowrap tracking-tighter leading-none transition-colors" style={{ color: themeColor }}>
+          {formatCalcDisplay(display)}
+        </div>
+      </div>
+
+      <div className="p-4 flex flex-col gap-3">
+        <div className="grid grid-cols-4 gap-[8px]" style={{ '--tc': themeColor } as any}>
+          {['C', '(', ')', '/'].map(btn => (
+             <button key={btn} onClick={() => btn === 'C' ? clear() : performOp(btn)} className="bg-[#2D2E33] text-[var(--tc)] active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">
+               {btn === '/' ? '÷' : btn}
+             </button>
+          ))}
+          {['7', '8', '9', '*'].map(btn => (
+             <button key={btn} onClick={() => btn === '*' ? performOp(btn) : inputDigit(btn)} className={`${btn === '*' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
+               {btn === '*' ? '×' : btn}
+             </button>
+          ))}
+          {['4', '5', '6', '-'].map(btn => (
+             <button key={btn} onClick={() => btn === '-' ? performOp(btn) : inputDigit(btn)} className={`${btn === '-' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
+               {btn}
+             </button>
+          ))}
+          {['1', '2', '3', '+'].map(btn => (
+             <button key={btn} onClick={() => btn === '+' ? performOp(btn) : inputDigit(btn)} className={`${btn === '+' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
+               {btn}
+             </button>
+          ))}
+          <button onClick={() => inputDigit('0')} className="col-span-2 bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">0</button>
+          <button onClick={() => inputDoubleZero()} className="bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">00</button>
+          <button onClick={calculate} className="bg-[var(--tc)] text-[#0F0F11] active:!bg-white rounded-[8px] h-[54px] text-[18px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">=</button>
+        </div>
+
+        <button 
+          onClick={() => {
+            if (valNum > 0) {
+               onAdd('', 'calc', 'Adicionado via Calculadora', valNum);
+               clear();
+            }
+          }}
+          disabled={valNum <= 0}
+          className="mt-2 bg-transparent border disabled:opacity-30 transition-all font-bold h-[54px] rounded-[8px] flex items-center justify-center cursor-pointer gap-2 text-[14px] uppercase tracking-wide"
+          style={valNum > 0 ? { 
+            borderColor: themeColor, 
+            color: themeColor,
+            backgroundColor: `${themeColor}1A` 
+          } : {
+            borderColor: themeColor,
+            color: themeColor
+          }}
+        >
+          <Plus size={16} /> ADICIONAR: {format(valNum)}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onClearHistory, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onFinish: any, format: any, onScan: (name: string) => void }) {
+  const [scanning, setScanning] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<'current' | 'history'>('current');
+  const [search, setSearch] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  const handleScanResult = async (barcode: string) => {
+    setScanning(false);
+    setLoading(true);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const data = await res.json();
+      if (data && data.product && data.product.product_name) {
+        onScan(data.product.product_name);
+      } else {
+        alert('Produto não encontrado na base de dados.');
+      }
+    } catch (e) {
+      alert('Erro ao buscar produto.');
+    }
+    setLoading(false);
+  };
+
+  if (scanning) {
+    return (
+       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl p-4 gap-4">
+         <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA] text-center">Escaneando Código...</span>
+         <BarcodeScanner onResult={handleScanResult} onCancel={() => setScanning(false)} />
+       </motion.div>
+    );
+  }
+
+  const filteredHistory = history.filter(p => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    const dateStr = new Date(p.timestamp).toLocaleDateString('pt-BR').toLowerCase();
+    const matchesItems = p.items.some(item => item.name.toLowerCase().includes(s));
+    return dateStr.includes(s) || matchesItems;
+  });
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl relative pb-2">
+      <div className="p-2 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
+        <div className="flex bg-[#0F0F11] rounded-[8px] p-1 gap-1">
+          <button 
+            onClick={() => setView('current')} 
+            className={`px-3 py-1.5 rounded-[6px] text-[11px] font-bold uppercase transition-colors ${view === 'current' ? 'bg-[#2D2E33] text-white' : 'text-[#A1A1AA] hover:text-white'}`}
+          >
+            Atual ({cart.length})
+          </button>
+          <button 
+            onClick={() => setView('history')} 
+            className={`px-3 py-1.5 rounded-[6px] text-[11px] font-bold uppercase transition-colors ${view === 'history' ? 'bg-[#2D2E33] text-white' : 'text-[#A1A1AA] hover:text-white'}`}
+          >
+            Histórico ({history.length})
+          </button>
+        </div>
+        {view === 'current' ? (
+          <div className="flex bg-[#0F0F11] rounded-[8px] p-1 gap-1 mr-1">
+            <button
+              onClick={() => {
+                if (selectedItems.length === cart.length && cart.length > 0) {
+                  setSelectedItems([]);
+                } else {
+                  setSelectedItems(cart.map(item => item.id));
+                }
+              }}
+              className="text-[#C1FF72] hover:text-[#A8E659] flex items-center justify-center p-2 transition-colors"
+              title="Selecionar Tudo"
+            >
+              {selectedItems.length === cart.length && cart.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+            </button>
+            <button onClick={() => setScanning(true)} className="text-[#C1FF72] hover:text-[#A8E659] flex items-center justify-center p-2 transition-colors" title="Escanear Código de Barras">
+              <Barcode size={18} />
+            </button>
+          </div>
+        ) : (
+          history.length > 0 && (
+            <button onClick={onClearHistory} className="text-[#A1A1AA] hover:text-[#FF5555] flex items-center justify-center p-2 mr-1 transition-colors" title="Apagar Histórico">
+              <Trash2 size={16} />
+            </button>
+          )
+        )}
+      </div>
+
+      {view === 'current' ? (
+        <div className="p-3 flex flex-col gap-[8px]">
+          {loading && (
+            <div className="flex justify-center p-4">
+               <div className="w-6 h-6 rounded-full border-2 border-[#C1FF72] border-t-transparent animate-spin" />
+            </div>
+          )}
+          {cart.length === 0 && !loading && (
+             <div className="flex flex-col items-center justify-center py-10 text-[#A1A1AA] space-y-4">
+               <ShoppingCart size={48} className="opacity-20" />
+               <p className="text-[12px] font-bold uppercase tracking-widest text-[#A1A1AA]">Carrinho Vazio</p>
+               <button onClick={() => setScanning(true)} className="mt-4 flex items-center justify-center gap-2 bg-[#2D2E33] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#323338] transition-colors text-[13px] uppercase tracking-wider">
+                 <Barcode size={18} /> Escanear Código
+               </button>
+             </div>
+          )}
+          {cart.map((item, index) => {
+            const isSelected = selectedItems.includes(item.id);
+            return (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.03 }}
+                key={item.id} 
+                className={`flex items-center justify-between bg-white/[0.03] border-l-[3px] p-2 rounded-[8px] transition-colors ${isSelected ? 'border-[#C1FF72] bg-white/[0.08]' : 'border-transparent'}`}
+              >
+                <button 
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedItems(selectedItems.filter(id => id !== item.id));
+                    } else {
+                      setSelectedItems([...selectedItems, item.id]);
+                    }
+                  }}
+                  className="p-2 text-[#A1A1AA] hover:text-white transition-colors"
+                >
+                  {isSelected ? <CheckSquare size={18} className="text-[#C1FF72]" /> : <Square size={18} />}
+                </button>
+                <div className="flex-1 min-w-0 pr-4 pl-1">
+                  <h3 className="font-semibold text-[14px] text-white truncate">{item.name}</h3>
+                  <p className="text-[12px] text-[#A1A1AA] truncate">{item.details}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-[16px] text-white whitespace-nowrap">{format(item.value)}</span>
+                  <button onClick={() => onRemove(item.id)} className="text-[#A1A1AA] hover:text-[#FF5555] p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+          
+          {cart.length > 0 && (
+            <div className="flex gap-2 mt-4">
+              <button 
+                onClick={() => {
+                  if (selectedItems.length > 0) {
+                    onRemoveMultiple(selectedItems);
+                    setSelectedItems([]);
+                  } else {
+                    onClear();
+                  }
+                }} 
+                className={`flex-1 h-[48px] bg-transparent border text-[#A1A1AA] hover:text-white rounded-[8px] font-semibold text-[12px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${selectedItems.length > 0 ? 'border-[#FF5555] hover:border-[#FF5555] text-[#FF5555] hover:text-[#FF5555] hover:bg-[#FF5555]/10' : 'border-[#2D2E33] hover:border-[#A1A1AA]'}`}
+              >
+                <Trash2 size={16} /> {selectedItems.length > 0 ? `Apagar (${selectedItems.length})` : 'Limpar'}
+              </button>
+              <button onClick={onFinish} className="flex-[2] h-[48px] bg-[#C1FF72] text-[#0F0F11] hover:bg-[#A8E659] rounded-[8px] font-bold text-[12px] uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+                <CheckCircle size={16} /> Finalizar Feira
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="p-3 flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A1A1AA]" size={16} />
+            <input 
+              type="text" 
+              placeholder="Buscar por data ou item..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-black border border-[#2D2E33] rounded-[8px] pl-9 pr-3 py-2 text-[14px] text-white outline-none focus:border-[#C1FF72] transition-colors placeholder:text-[#2D2E33]"
+            />
+          </div>
+
+          {filteredHistory.length === 0 ? (
+             <div className="flex flex-col items-center justify-center py-10 text-[#A1A1AA] space-y-4">
+               <Clock size={48} className="opacity-20" />
+               <p className="text-[12px] font-bold uppercase tracking-widest text-[#A1A1AA]">Nenhum histórico</p>
+             </div>
+          ) : (
+             <div className="flex flex-col gap-2 relative">
+               {filteredHistory.map(purchase => {
+                 const date = new Date(purchase.timestamp);
+                 const isExpanded = expandedId === purchase.id;
+                 return (
+                   <motion.div key={purchase.id} className="bg-white/[0.03] border border-[#2D2E33] rounded-[8px] overflow-hidden flex flex-col">
+                     <button 
+                       onClick={() => setExpandedId(isExpanded ? null : purchase.id)}
+                       className="p-3 flex justify-between items-center text-left hover:bg-white/5 transition-colors"
+                     >
+                       <div>
+                         <div className="font-semibold text-white text-[14px]">
+                           {date.toLocaleDateString('pt-BR')} <span className="opacity-50 font-normal text-[12px]">às {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                         </div>
+                         <div className="text-[12px] text-[#A1A1AA]">{purchase.items.length} itens</div>
+                       </div>
+                       <div className="flex items-center gap-3">
+                         <span className="font-mono text-[#C1FF72] font-bold">{format(purchase.total)}</span>
+                         {isExpanded ? <ChevronUp size={16} className="text-[#A1A1AA]" /> : <ChevronDown size={16} className="text-[#A1A1AA]" />}
+                       </div>
+                     </button>
+                     <AnimatePresence>
+                       {isExpanded && (
+                         <motion.div 
+                           initial={{ height: 0, opacity: 0 }} 
+                           animate={{ height: 'auto', opacity: 1 }} 
+                           exit={{ height: 0, opacity: 0 }}
+                           className="bg-black/50 border-t border-[#2D2E33] px-3 py-2 flex flex-col gap-2"
+                         >
+                           {purchase.items.map(item => (
+                             <div key={item.id} className="flex justify-between items-center py-1 border-b border-[#2D2E33]/50 last:border-0">
+                               <div className="flex-1 pr-2">
+                                 <div className="text-[12px] font-semibold text-white truncate">{item.name}</div>
+                                 <div className="text-[10px] text-[#A1A1AA]">{item.details}</div>
+                               </div>
+                               <div className="text-[12px] font-mono text-[#A1A1AA]">{format(item.value)}</div>
+                             </div>
+                           ))}
+                         </motion.div>
+                       )}
+                     </AnimatePresence>
+                   </motion.div>
+                 );
+               })}
+             </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function BarcodeScanner({ onResult, onCancel }: { onResult: (code: string) => void, onCancel: () => void }) {
+  useEffect(() => {
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => {
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop().then(() => {
+            onResult(decodedText);
+          }).catch(console.error);
+        }
+      },
+      (errorMessage) => {
+        // quiet fail
+      }
+    ).catch((err) => {
+      console.log(err);
+    });
+
+    return () => {
+      if (html5QrCode.isScanning) {
+        html5QrCode.stop().catch(console.error);
+      }
+    };
+  }, [onResult]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div id="reader" className="w-full bg-black rounded-lg overflow-hidden border border-[#2D2E33] min-h-[250px]"></div>
+      <button onClick={onCancel} className="w-full bg-[#2D2E33] text-white py-3 rounded-lg font-bold">Cancelar</button>
+    </div>
+  );
+}
