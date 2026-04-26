@@ -1,0 +1,17 @@
+{
+  "name": "Calculadora PRO",
+  "short_name": "Calc Pro",
+  "description": "Aplicativo de supermercado offline",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F11",
+  "theme_color": "#0F0F11",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

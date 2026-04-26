@@ -12,9 +12,19 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-mono',
 });
 
+export const viewport = {
+  themeColor: '#0F0F11',
+};
+
 export const metadata: Metadata = {
   title: 'Calculadora de Feira',
   description: 'Calculadora profissional para feiras.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Calc Feira',
+    statusBarStyle: 'black-translucent',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
