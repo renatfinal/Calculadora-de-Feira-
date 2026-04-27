@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, Calculator as CalcIcon, Scale, List as ListIcon, Trash2, Plus, X, Layers, Barcode, CheckCircle, Clock, Search, ChevronDown, ChevronUp, CheckSquare, Square, Check } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 interface CartItem {
   id: string;
@@ -19,6 +19,12 @@ interface Purchase {
   timestamp: number;
   total: number;
   items: CartItem[];
+}
+
+interface FixedItem {
+  id: string;
+  name: string;
+  checked: boolean;
 }
 
 const formatCurrencyInput = (digits: string) => {
@@ -48,16 +54,32 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'peso' | 'unidade' | 'calc' | 'lista'>('calc');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [history, setHistory] = useState<Purchase[]>([]);
+  const [fixedList, setFixedList] = useState<FixedItem[]>([]);
+  const [themeColor, setThemeColor] = useState('#C1FF72');
   const [isHydrated, setIsHydrated] = useState(false);
   const [scannedName, setScannedName] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('@CalculadoraFeira:cart');
     const savedHistory = localStorage.getItem('@CalculadoraFeira:history');
+    const savedTheme = localStorage.getItem('@CalculadoraFeira:themeColor');
+    const savedFixed = localStorage.getItem('@CalculadoraFeira:fixedList');
+    
+    if (savedTheme) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setThemeColor(savedTheme);
+    }
+    
+    if (savedFixed) {
+      try {
+        setFixedList(JSON.parse(savedFixed));
+      } catch (e) {
+        console.error('Failed to load fixed list', e);
+      }
+    }
     
     if (saved) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCart(JSON.parse(saved));
       } catch (e) {
         console.error('Failed to load cart', e);
@@ -78,8 +100,10 @@ export default function App() {
     if (isHydrated) {
       localStorage.setItem('@CalculadoraFeira:cart', JSON.stringify(cart));
       localStorage.setItem('@CalculadoraFeira:history', JSON.stringify(history));
+      localStorage.setItem('@CalculadoraFeira:themeColor', themeColor);
+      localStorage.setItem('@CalculadoraFeira:fixedList', JSON.stringify(fixedList));
     }
-  }, [cart, history, isHydrated]);
+  }, [cart, history, themeColor, fixedList, isHydrated]);
 
   const total = cart.reduce((acc, item) => acc + item.value, 0);
 
@@ -117,6 +141,7 @@ export default function App() {
   const clearCart = () => {
     if (confirm('Tem certeza que deseja apagar toda a lista de compras?')) {
       setCart([]);
+      setFixedList(fixedList.map(item => ({ ...item, checked: false })));
     }
   };
 
@@ -140,14 +165,15 @@ export default function App() {
     };
     setHistory([newPurchase, ...history]);
     setCart([]);
+    setFixedList(fixedList.map(item => ({ ...item, checked: false })));
     alert('Feira finalizada e salva no histórico!');
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#0F0F11] text-white font-sans flex flex-col pb-[90px]">
+    <div className="min-h-[100dvh] bg-[#0F0F11] text-white font-sans flex flex-col pb-[90px]" style={{ '--tc': themeColor } as any}>
       <header className="sticky top-0 z-30 bg-[#0F0F11]/90 backdrop-blur-md border-b border-[#2D2E33] p-4 flex justify-between items-center pt-safe-top">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center bg-[#C1FF72] text-[#0F0F11] font-extrabold rounded-lg text-lg leading-none">
+          <div className="w-8 h-8 flex items-center justify-center bg-[var(--tc)] text-[#0F0F11] font-extrabold rounded-lg text-lg leading-none">
             F
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-white">
@@ -160,7 +186,7 @@ export default function App() {
         <div className="bg-black border-y sm:border sm:rounded-xl border-[#2D2E33] p-3 -mx-4 sm:mx-0 flex flex-row items-center justify-between">
           <div className="flex flex-col">
             <span className="text-[10px] text-[#A1A1AA] mb-1 uppercase tracking-[0.05em] font-semibold">Total da Compra</span>
-            <div className="text-[28px] font-mono font-bold text-[#C1FF72] tracking-tighter leading-none">
+            <div className="text-[28px] font-mono font-bold text-[var(--tc)] tracking-tighter leading-none">
               {formatCurrency(total)}
             </div>
           </div>
@@ -172,8 +198,8 @@ export default function App() {
         <AnimatePresence mode="wait">
           {activeTab === 'peso' && <WeightCalculator key="peso" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
           {activeTab === 'unidade' && <UnitCalculator key="unidade" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
-          {activeTab === 'calc' && <StandardCalculator key="calc" onAdd={addToCart} format={formatCurrency} />}
-          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
+          {activeTab === 'calc' && <StandardCalculator key="calc" onAdd={addToCart} format={formatCurrency} currentTheme={themeColor} onThemeChange={setThemeColor} />}
+          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} fixedList={fixedList} onUpdateFixedList={setFixedList} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
         </AnimatePresence>
       </main>
 
@@ -193,7 +219,7 @@ function NavItem({ active, onClick, icon, label, badge }: { active: boolean, onC
   return (
     <button 
       onClick={onClick}
-      className={`relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-300 ${active ? 'text-[#C1FF72]' : 'text-[#A1A1AA] hover:text-white'}`}
+      className={`relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-300 ${active ? 'text-[var(--tc)]' : 'text-[#A1A1AA] hover:text-white'}`}
     >
       {icon}
       <span className="text-[10px] font-semibold mt-1 uppercase tracking-wider">{label}</span>
@@ -202,7 +228,7 @@ function NavItem({ active, onClick, icon, label, badge }: { active: boolean, onC
           {badge > 9 ? '9+' : badge}
         </span>
       )}
-      {active && <div className="absolute -top-2 w-8 h-[2px] bg-[#C1FF72] rounded-full" />}
+      {active && <div className="absolute -top-2 w-8 h-[2px] bg-[var(--tc)] rounded-full" />}
     </button>
   );
 }
@@ -234,7 +260,7 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
         <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Pesagem e Conversão</span>
-        <span className="bg-[#C1FF72] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">PESO</span>
+        <span className="bg-[var(--tc)] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">PESO</span>
       </div>
       
       <div className="p-4 flex flex-col gap-3">
@@ -242,7 +268,7 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
           <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Preço por Quilo (R$/kg)</label>
           <input 
             type="text" inputMode="numeric" placeholder="00,00" value={formatCurrencyInput(priceKg)} onChange={(e) => setPriceKg(e.target.value.replace(/\D/g, ''))}
-            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[var(--tc)] transition-colors"
           />
         </div>
         
@@ -250,7 +276,7 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
           <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Peso do Produto (Gramas)</label>
           <input 
             type="text" inputMode="numeric" placeholder="0" value={formatIntegerInput(weight)} onChange={(e) => setWeight(e.target.value.replace(/\D/g, ''))}
-            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[var(--tc)] transition-colors"
           />
         </div>
         
@@ -258,13 +284,13 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
           <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Nome do Produto (Opcional)</label>
           <input 
             type="text" placeholder="" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[14px] text-white outline-none focus:border-[#C1FF72] transition-colors placeholder:text-[#2D2E33]"
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[14px] text-white outline-none focus:border-[var(--tc)] transition-colors placeholder:text-[#2D2E33]"
           />
         </div>
 
-        <div className="bg-[#C1FF72]/5 border border-dashed border-[#C1FF72] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
+        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
           <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-1">Valor Estimado</div>
-          <div className="text-[32px] font-mono text-[#C1FF72] font-bold tracking-tighter leading-none">
+          <div className="text-[32px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
             {format(calculated)}
           </div>
         </div>
@@ -272,7 +298,7 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
         <button 
           onClick={handleAdd}
           disabled={calculated <= 0}
-          className="mt-1 bg-[#C1FF72] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
+          className="mt-1 bg-[var(--tc)] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
         >
           ADICIONAR AO CARRINHO
         </button>
@@ -308,7 +334,7 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
         <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Multiplicador de Unidades</span>
-        <span className="bg-[#C1FF72] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">UNID</span>
+        <span className="bg-[var(--tc)] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">UNID</span>
       </div>
       
       <div className="p-4 flex flex-col gap-3">
@@ -317,14 +343,14 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
              <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Qtd</label>
              <input 
                type="text" inputMode="numeric" placeholder="0" value={formatIntegerInput(qtd)} onChange={(e) => setQtd(e.target.value.replace(/\D/g, ''))}
-               className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+               className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[var(--tc)] transition-colors"
              />
           </div>
           <div className="flex flex-col gap-1.5 flex-[2]">
              <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Valor Unt</label>
              <input 
                type="text" inputMode="numeric" placeholder="00,00" value={formatCurrencyInput(price)} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
-               className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[#C1FF72] transition-colors"
+               className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[20px] font-mono text-white outline-none focus:border-[var(--tc)] transition-colors"
              />
           </div>
         </div>
@@ -333,13 +359,13 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
           <label className="text-[10px] font-semibold text-[#A1A1AA] uppercase">Nome do Produto (Opcional)</label>
           <input 
             type="text" placeholder="" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[14px] text-white outline-none focus:border-[#C1FF72] transition-colors placeholder:text-[#2D2E33]"
+            className="w-full bg-black border border-[#2D2E33] rounded-[10px] px-3 py-2 text-[14px] text-white outline-none focus:border-[var(--tc)] transition-colors placeholder:text-[#2D2E33]"
           />
         </div>
 
-        <div className="bg-[#C1FF72]/5 border border-dashed border-[#C1FF72] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
+        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
           <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-1">Valor Estimado</div>
-          <div className="text-[32px] font-mono text-[#C1FF72] font-bold tracking-tighter leading-none">
+          <div className="text-[32px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
             {format(calculated)}
           </div>
         </div>
@@ -347,7 +373,7 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
         <button 
           onClick={handleAdd}
           disabled={calculated <= 0}
-          className="mt-1 bg-[#C1FF72] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
+          className="mt-1 bg-[var(--tc)] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
         >
           ADICIONAR AO CARRINHO
         </button>
@@ -356,12 +382,11 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
   );
 }
 
-function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
+function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { onAdd: any, format: any, currentTheme: string, onThemeChange: (c: string) => void }) {
   const [display, setDisplay] = useState('0');
   const [prev, setPrev] = useState<number | null>(null);
   const [operator, setOperator] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
-  const [themeColor, setThemeColor] = useState('#C1FF72');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   const colors = ['#C1FF72', '#00E5FF', '#FF00FF', '#FFEA00', '#FF6D00'];
@@ -428,7 +453,7 @@ function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
           <button 
             onClick={() => setShowColorPicker(!showColorPicker)}
             className="text-[#0F0F11] text-[11px] font-extrabold px-3 py-1.5 rounded border border-transparent hover:brightness-110 active:scale-95 transition-all tracking-wider"
-            style={{ backgroundColor: themeColor }}
+            style={{ backgroundColor: currentTheme }}
           >
             COLOR
           </button>
@@ -444,9 +469,9 @@ function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
                 {colors.map(c => (
                   <button 
                     key={c} 
-                    onClick={() => { setThemeColor(c); setShowColorPicker(false); }}
+                    onClick={() => { onThemeChange(c); setShowColorPicker(false); }}
                     className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                    style={{ backgroundColor: c, borderColor: themeColor === c ? 'white' : 'transparent' }}
+                    style={{ backgroundColor: c, borderColor: currentTheme === c ? 'white' : 'transparent' }}
                   />
                 ))}
               </motion.div>
@@ -459,13 +484,13 @@ function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
         <div className="text-[12px] opacity-50 mb-1 font-mono text-[#A1A1AA] h-4 leading-none">
           {prev !== null ? `${format(prev)} ${operator}` : ''}
         </div>
-        <div className="text-[32px] font-mono overflow-x-auto overflow-y-hidden whitespace-nowrap tracking-tighter leading-none transition-colors" style={{ color: themeColor }}>
+        <div className="text-[32px] font-mono overflow-x-auto overflow-y-hidden whitespace-nowrap tracking-tighter leading-none transition-colors" style={{ color: currentTheme }}>
           {formatCalcDisplay(display)}
         </div>
       </div>
 
       <div className="p-4 flex flex-col gap-3">
-        <div className="grid grid-cols-4 gap-[8px]" style={{ '--tc': themeColor } as any}>
+        <div className="grid grid-cols-4 gap-[8px]">
           {['C', '(', ')', '/'].map(btn => (
              <button key={btn} onClick={() => btn === 'C' ? clear() : performOp(btn)} className="bg-[#2D2E33] text-[var(--tc)] active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">
                {btn === '/' ? '÷' : btn}
@@ -501,12 +526,12 @@ function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
           disabled={valNum <= 0}
           className="mt-2 bg-transparent border disabled:opacity-30 transition-all font-bold h-[54px] rounded-[8px] flex items-center justify-center cursor-pointer gap-2 text-[14px] uppercase tracking-wide"
           style={valNum > 0 ? { 
-            borderColor: themeColor, 
-            color: themeColor,
-            backgroundColor: `${themeColor}1A` 
+            borderColor: currentTheme, 
+            color: currentTheme,
+            backgroundColor: `${currentTheme}1A` 
           } : {
-            borderColor: themeColor,
-            color: themeColor
+            borderColor: currentTheme,
+            color: currentTheme
           }}
         >
           <Plus size={16} /> ADICIONAR: {format(valNum)}
@@ -516,27 +541,44 @@ function StandardCalculator({ onAdd, format }: { onAdd: any, format: any }) {
   );
 }
 
-function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onClearHistory, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onFinish: any, format: any, onScan: (name: string) => void }) {
+function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, onRemoveMultiple, onClear, onClearHistory, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], fixedList: FixedItem[], onUpdateFixedList: any, onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onFinish: any, format: any, onScan: (name: string) => void }) {
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<'current' | 'history'>('current');
+  const [view, setView] = useState<'current' | 'history' | 'fixed'>('current');
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [newFixedItem, setNewFixedItem] = useState('');
+
+  const handleAddFixedItem = () => {
+    if (!newFixedItem.trim()) return;
+    onUpdateFixedList([...fixedList, { id: Date.now().toString(), name: newFixedItem.trim(), checked: false }]);
+    setNewFixedItem('');
+  };
+
+  const toggleFixedItem = (id: string) => {
+    onUpdateFixedList(fixedList.map((item: FixedItem) => item.id === id ? { ...item, checked: !item.checked } : item));
+  };
+
+  const removeFixedItem = (id: string) => {
+    onUpdateFixedList(fixedList.filter((item: FixedItem) => item.id !== id));
+  };
 
   const handleScanResult = async (barcode: string) => {
     setScanning(false);
     setLoading(true);
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const res = await fetch(`https://br.openfoodfacts.org/api/v0/product/${barcode}.json`);
       const data = await res.json();
       if (data && data.product && data.product.product_name) {
         onScan(data.product.product_name);
       } else {
-        alert('Produto não encontrado na base de dados.');
+        alert('Produto não encontrado na base. Adicionando o código ao invés do nome.');
+        onScan(barcode);
       }
     } catch (e) {
-      alert('Erro ao buscar produto.');
+      alert('Erro ao buscar produto. Adicionando o código ao invés do nome.');
+      onScan(barcode);
     }
     setLoading(false);
   };
@@ -574,6 +616,12 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
           >
             Histórico ({history.length})
           </button>
+          <button 
+            onClick={() => setView('fixed')} 
+            className={`px-3 py-1.5 rounded-[6px] text-[11px] font-bold uppercase transition-colors ${view === 'fixed' ? 'bg-[#2D2E33] text-white' : 'text-[#A1A1AA] hover:text-white'}`}
+          >
+            Fixa
+          </button>
         </div>
         {view === 'current' ? (
           <div className="flex bg-[#0F0F11] rounded-[8px] p-1 gap-1 mr-1">
@@ -585,12 +633,12 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
                   setSelectedItems(cart.map(item => item.id));
                 }
               }}
-              className="text-[#C1FF72] hover:text-[#A8E659] flex items-center justify-center p-2 transition-colors"
+              className="text-[var(--tc)] hover:text-[#A8E659] flex items-center justify-center p-2 transition-colors"
               title="Selecionar Tudo"
             >
               {selectedItems.length === cart.length && cart.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
             </button>
-            <button onClick={() => setScanning(true)} className="text-[#C1FF72] hover:text-[#A8E659] flex items-center justify-center p-2 transition-colors" title="Escanear Código de Barras">
+            <button onClick={() => setScanning(true)} className="text-[var(--tc)] hover:text-[#A8E659] flex items-center justify-center p-2 transition-colors" title="Escanear Código de Barras">
               <Barcode size={18} />
             </button>
           </div>
@@ -603,11 +651,11 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
         )}
       </div>
 
-      {view === 'current' ? (
+      {view === 'current' && (
         <div className="p-3 flex flex-col gap-[8px]">
           {loading && (
             <div className="flex justify-center p-4">
-               <div className="w-6 h-6 rounded-full border-2 border-[#C1FF72] border-t-transparent animate-spin" />
+               <div className="w-6 h-6 rounded-full border-2 border-[var(--tc)] border-t-transparent animate-spin" />
             </div>
           )}
           {cart.length === 0 && !loading && (
@@ -627,7 +675,7 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.03 }}
                 key={item.id} 
-                className={`flex items-center justify-between bg-white/[0.03] border-l-[3px] p-2 rounded-[8px] transition-colors ${isSelected ? 'border-[#C1FF72] bg-white/[0.08]' : 'border-transparent'}`}
+                className={`flex items-center justify-between bg-white/[0.03] border-l-[3px] p-2 rounded-[8px] transition-colors ${isSelected ? 'border-[var(--tc)] bg-white/[0.08]' : 'border-transparent'}`}
               >
                 <button 
                   onClick={() => {
@@ -639,7 +687,7 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
                   }}
                   className="p-2 text-[#A1A1AA] hover:text-white transition-colors"
                 >
-                  {isSelected ? <CheckSquare size={18} className="text-[#C1FF72]" /> : <Square size={18} />}
+                  {isSelected ? <CheckSquare size={18} className="text-[var(--tc)]" /> : <Square size={18} />}
                 </button>
                 <div className="flex-1 min-w-0 pr-4 pl-1">
                   <h3 className="font-semibold text-[14px] text-white truncate">{item.name}</h3>
@@ -670,13 +718,15 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
               >
                 <Trash2 size={16} /> {selectedItems.length > 0 ? `Apagar (${selectedItems.length})` : 'Limpar'}
               </button>
-              <button onClick={onFinish} className="flex-[2] h-[48px] bg-[#C1FF72] text-[#0F0F11] hover:bg-[#A8E659] rounded-[8px] font-bold text-[12px] uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+              <button onClick={onFinish} className="flex-[2] h-[48px] bg-[var(--tc)] text-[#0F0F11] hover:bg-[#A8E659] rounded-[8px] font-bold text-[12px] uppercase tracking-wider transition-all flex items-center justify-center gap-2">
                 <CheckCircle size={16} /> Finalizar Feira
               </button>
             </div>
           )}
         </div>
-      ) : (
+      )}
+
+      {view === 'history' && (
         <div className="p-3 flex flex-col gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A1A1AA]" size={16} />
@@ -685,7 +735,7 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
               placeholder="Buscar por data ou item..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-black border border-[#2D2E33] rounded-[8px] pl-9 pr-3 py-2 text-[14px] text-white outline-none focus:border-[#C1FF72] transition-colors placeholder:text-[#2D2E33]"
+              className="w-full bg-black border border-[#2D2E33] rounded-[8px] pl-9 pr-3 py-2 text-[14px] text-white outline-none focus:border-[var(--tc)] transition-colors placeholder:text-[#2D2E33]"
             />
           </div>
 
@@ -712,7 +762,7 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
                          <div className="text-[12px] text-[#A1A1AA]">{purchase.items.length} itens</div>
                        </div>
                        <div className="flex items-center gap-3">
-                         <span className="font-mono text-[#C1FF72] font-bold">{format(purchase.total)}</span>
+                         <span className="font-mono text-[var(--tc)] font-bold">{format(purchase.total)}</span>
                          {isExpanded ? <ChevronUp size={16} className="text-[#A1A1AA]" /> : <ChevronDown size={16} className="text-[#A1A1AA]" />}
                        </div>
                      </button>
@@ -743,16 +793,68 @@ function ShoppingList({ cart, history, onRemove, onRemoveMultiple, onClear, onCl
           )}
         </div>
       )}
+
+      {view === 'fixed' && (
+        <div className="p-3 flex flex-col gap-3">
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              value={newFixedItem} 
+              onChange={(e) => setNewFixedItem(e.target.value)} 
+              placeholder="Novo item fixo..." 
+              className="flex-1 bg-black border border-[#2D2E33] rounded-[8px] px-3 py-2 text-[14px] text-white outline-none focus:border-[var(--tc)] transition-colors" 
+              onKeyDown={(e) => e.key === 'Enter' && handleAddFixedItem()}
+            />
+            <button onClick={handleAddFixedItem} className="bg-[var(--tc)] text-[#0F0F11] px-4 rounded-[8px] font-bold active:scale-95 transition-all flex items-center justify-center">
+              <Plus size={20}/>
+            </button>
+          </div>
+          
+          <div className="flex flex-col gap-2 mt-2">
+            {fixedList.map(item => (
+               <div key={item.id} className={`flex items-center justify-between p-3 rounded-[8px] border-l-[3px] transition-colors cursor-pointer select-none ${item.checked ? 'border-[var(--tc)] bg-[var(--tc)]/10 text-[var(--tc)]' : 'border-[#2D2E33] bg-white/[0.03] text-white'}`} onClick={() => toggleFixedItem(item.id)}>
+                  <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                    {item.checked ? <CheckCircle size={18} className="shrink-0" /> : <div className="w-[18px] h-[18px] rounded-full border-2 border-[#A1A1AA] shrink-0" />}
+                    <span className={`font-semibold text-[14px] truncate ${item.checked ? 'line-through opacity-70 cursor-default' : ''}`}>{item.name}</span>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); removeFixedItem(item.id); }} className="text-[#A1A1AA] hover:text-[#FF5555] p-2 -mr-2 transition-colors rounded-lg hover:bg-white/5">
+                    <X size={16}/>
+                  </button>
+               </div>
+            ))}
+            {fixedList.length === 0 && (
+               <div className="flex flex-col items-center justify-center py-10 text-[#A1A1AA] space-y-4">
+                 <ListIcon size={48} className="opacity-20" />
+                 <p className="text-[12px] font-bold uppercase tracking-widest text-[#A1A1AA] text-center leading-relaxed">Nenhum item fixo<br/>adicionado</p>
+               </div>
+            )}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
 
 function BarcodeScanner({ onResult, onCancel }: { onResult: (code: string) => void, onCancel: () => void }) {
   useEffect(() => {
-    const html5QrCode = new Html5Qrcode("reader");
+    const html5QrCode = new Html5Qrcode("reader", {
+      verbose: false,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ]
+    });
     html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      { 
+        fps: 10, 
+        qrbox: { width: 250, height: 150 }
+      },
       (decodedText) => {
         if (html5QrCode.isScanning) {
           html5QrCode.stop().then(() => {
@@ -777,6 +879,10 @@ function BarcodeScanner({ onResult, onCancel }: { onResult: (code: string) => vo
   return (
     <div className="flex flex-col gap-4">
       <div id="reader" className="w-full bg-black rounded-lg overflow-hidden border border-[#2D2E33] min-h-[250px]"></div>
+      <p className="text-[#A1A1AA] text-[11px] text-center leading-relaxed px-4">
+        Ao focar no código, mantenha a câmera parada e com boa iluminação.<br/>
+        Se o produto não existir na base, o próprio código será adicionado como nome.
+      </p>
       <button onClick={onCancel} className="w-full bg-[#2D2E33] text-white py-3 rounded-lg font-bold">Cancelar</button>
     </div>
   );
