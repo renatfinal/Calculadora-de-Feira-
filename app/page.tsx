@@ -448,7 +448,10 @@ function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { on
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Calculadora Principal</span>
+        <div className="flex flex-col">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Calculadora Principal</span>
+          <span className="text-[10px] opacity-40 transition-colors" style={{ color: currentTheme }}>𝕽𝖊𝖓𝖆𝖙𝖋𝖎𝖓𝖆𝖑</span>
+        </div>
         <div className="relative">
           <button 
             onClick={() => setShowColorPicker(!showColorPicker)}
