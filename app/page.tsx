@@ -46,8 +46,15 @@ const formatCalcDisplay = (digitsStr: string) => {
       isNeg = true;
       str = str.substring(1);
   }
-  const num = parseInt(str || '0', 10) / 100;
-  return (isNeg ? '-' : '') + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+  const parts = str.split('.');
+  const intPart = parseInt(parts[0] || '0', 10);
+  const formattedInt = new Intl.NumberFormat('pt-BR').format(intPart);
+  const sign = isNeg ? '-' : '';
+  
+  if (parts.length > 1) {
+    return sign + formattedInt + ',' + parts[1];
+  }
+  return sign + formattedInt;
 };
 
 export default function App() {
@@ -58,6 +65,9 @@ export default function App() {
   const [themeColor, setThemeColor] = useState('#C1FF72');
   const [isHydrated, setIsHydrated] = useState(false);
   const [scannedName, setScannedName] = useState('');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
+  const colors = ['#C1FF72', '#00E5FF', '#FF00FF', '#FFEA00', '#FF6D00'];
 
   useEffect(() => {
     const saved = localStorage.getItem('@CalculadoraFeira:cart');
@@ -172,12 +182,39 @@ export default function App() {
   return (
     <div className="min-h-[100dvh] bg-[#0F0F11] text-white font-sans flex flex-col pb-[90px]" style={{ '--tc': themeColor } as any}>
       <header className="sticky top-0 z-30 bg-[#0F0F11]/90 backdrop-blur-md border-b border-[#2D2E33] p-4 flex justify-between items-center pt-safe-top">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center bg-[var(--tc)] text-[#0F0F11] font-extrabold rounded-lg text-lg leading-none">
-            F
-          </div>
+        <div className="flex items-center gap-3 relative">
+          <button 
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="w-8 h-8 flex items-center justify-center bg-[var(--tc)] text-[#0F0F11] font-extrabold rounded-lg text-lg leading-none active:scale-95 transition-all"
+          >
+            RF
+          </button>
+          
+          <AnimatePresence>
+            {showColorPicker && (
+              <motion.div 
+                initial={{ opacity: 0, y: -5, scale: 0.9 }} 
+                animate={{ opacity: 1, y: 0, scale: 1 }} 
+                exit={{ opacity: 0, y: -5, scale: 0.9 }}
+                className="absolute left-0 top-full mt-2 bg-[#1A1B1E] border border-[#2D2E33] rounded-lg p-2 flex gap-1.5 z-50 shadow-2xl"
+              >
+                {colors.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setThemeColor(c);
+                      setShowColorPicker(false);
+                    }}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform ${themeColor === c ? 'border-white scale-110' : 'border-transparent hover:scale-110'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <h1 className="text-xl font-semibold tracking-tight text-white">
-            Calculadora <span className="font-light opacity-60 text-white">PRO</span>
+            Calculadora
           </h1>
         </div>
       </header>
@@ -259,8 +296,17 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Pesagem e Conversão</span>
-        <span className="bg-[var(--tc)] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">PESO</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Pesagem e Conversão</span>
+          <span className="bg-[var(--tc)] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">PESO</span>
+        </div>
+        <button 
+          onClick={handleAdd}
+          disabled={calculated <= 0}
+          className="bg-[var(--tc)] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] w-8 h-8 rounded-lg flex items-center justify-center transition-colors active:scale-95 shadow-md"
+        >
+          <ShoppingCart size={16} />
+        </button>
       </div>
       
       <div className="p-4 flex flex-col gap-3">
@@ -288,20 +334,12 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
           />
         </div>
 
-        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
-          <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-1">Valor Estimado</div>
-          <div className="text-[32px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
+        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[8px] py-1.5 px-3 flex flex-col items-center justify-center">
+          <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-0.5">Valor Estimado</div>
+          <div className="text-[24px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
             {format(calculated)}
           </div>
         </div>
-
-        <button 
-          onClick={handleAdd}
-          disabled={calculated <= 0}
-          className="mt-1 bg-[var(--tc)] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
-        >
-          ADICIONAR AO CARRINHO
-        </button>
       </div>
     </motion.div>
   );
@@ -333,8 +371,17 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Multiplicador de Unidades</span>
-        <span className="bg-[var(--tc)] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">UNID</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Multiplicador de Unidades</span>
+          <span className="bg-[var(--tc)] text-[#0F0F11] text-[10px] font-extrabold px-1.5 py-0.5 rounded">UNID</span>
+        </div>
+        <button 
+          onClick={handleAdd}
+          disabled={calculated <= 0}
+          className="bg-[var(--tc)] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] w-8 h-8 rounded-lg flex items-center justify-center transition-colors active:scale-95 shadow-md"
+        >
+          <ShoppingCart size={16} />
+        </button>
       </div>
       
       <div className="p-4 flex flex-col gap-3">
@@ -363,139 +410,157 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
           />
         </div>
 
-        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[10px] p-3 mt-1 flex flex-col items-center justify-center">
-          <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-1">Valor Estimado</div>
-          <div className="text-[32px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
+        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[8px] py-1.5 px-3 flex flex-col items-center justify-center">
+          <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-0.5">Valor Estimado</div>
+          <div className="text-[24px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
             {format(calculated)}
           </div>
         </div>
-
-        <button 
-          onClick={handleAdd}
-          disabled={calculated <= 0}
-          className="mt-1 bg-[var(--tc)] hover:bg-[#A8E659] disabled:bg-[#2D2E33] disabled:text-[#A1A1AA] text-[#0F0F11] font-bold h-[48px] rounded-[10px] flex items-center justify-center gap-2 transition-colors text-[13px] uppercase tracking-wide"
-        >
-          ADICIONAR AO CARRINHO
-        </button>
       </div>
     </motion.div>
   );
 }
 
 function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { onAdd: any, format: any, currentTheme: string, onThemeChange: (c: string) => void }) {
-  const [display, setDisplay] = useState('0');
-  const [prev, setPrev] = useState<number | null>(null);
-  const [operator, setOperator] = useState<string | null>(null);
-  const [waiting, setWaiting] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [expression, setExpression] = useState('0');
+  const [calculatedResult, setCalculatedResult] = useState<string | null>(null);
 
-  const colors = ['#C1FF72', '#00E5FF', '#FF00FF', '#FFEA00', '#FF6D00'];
-
-  const inputDigit = (d: string) => {
-    if (waiting) {
-      setDisplay(d);
-      setWaiting(false);
-    } else {
-      setDisplay(display === '0' ? d : display + d);
+  const safeEval = (expr: string) => {
+    try {
+      const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.');
+      // basic safety check
+      if (/[^0-9\+\-\*\/\.\(\)\% ]/.test(sanitized)) return null;
+      let res = new Function('return ' + sanitized)();
+      if (!isFinite(res) || isNaN(res)) return null;
+      return res;
+    } catch {
+      return null;
     }
   };
 
-  const inputDoubleZero = () => {
-    if (waiting) {
-      setDisplay('0');
-      setWaiting(false);
+  const inputDigit = (d: string) => {
+    if (calculatedResult !== null) {
+      setExpression(d);
+      setCalculatedResult(null);
     } else {
-      setDisplay(display === '0' ? '0' : display + '00');
+      setExpression(expression === '0' ? d : expression + d);
+    }
+  };
+
+  const inputComma = () => {
+    if (calculatedResult !== null) {
+      setExpression('0,');
+      setCalculatedResult(null);
+    } else {
+      const parts = expression.split(/[\+\-\×\÷]/);
+      const lastPart = parts[parts.length - 1];
+      if (!lastPart.includes(',')) {
+        setExpression(expression + ',');
+      }
+    }
+  };
+
+  const backspace = () => {
+    if (calculatedResult !== null) {
+      setCalculatedResult(null);
+    } else {
+      setExpression(expression.length > 1 ? expression.slice(0, -1) : '0');
+    }
+  };
+
+  const percent = () => {
+    if (calculatedResult !== null) {
+      const val = parseFloat(calculatedResult) / 100;
+      setExpression(String(val).replace('.', ','));
+      setCalculatedResult(null);
+    } else {
+      const match = expression.match(/(\d+(?:,\d+)?)$/);
+      if (match) {
+        const num = parseFloat(match[1].replace(',', '.'));
+        const repl = String(num / 100).replace('.', ',');
+        setExpression(expression.substring(0, expression.length - match[1].length) + repl);
+      }
     }
   };
 
   const clear = () => {
-    setDisplay('0');
-    setPrev(null);
-    setOperator(null);
-    setWaiting(false);
+    setExpression('0');
+    setCalculatedResult(null);
   };
 
-  const performOp = (nextOp: string) => {
-    const inputValue = parseInt(display || '0', 10) / 100;
-    if (prev == null) {
-      setPrev(inputValue);
-    } else if (operator) {
-      const currentVal = prev || 0;
-      let newValue = currentVal;
-      if (operator === '+') newValue = currentVal + inputValue;
-      else if (operator === '-') newValue = currentVal - inputValue;
-      else if (operator === '*') newValue = currentVal * inputValue;
-      else if (operator === '/') newValue = inputValue !== 0 ? currentVal / inputValue : 0;
-      
-      setPrev(newValue);
-      setDisplay(Math.round(newValue * 100).toString());
+  const performOp = (op: string) => {
+    let displayOp = op;
+    if (op === '*') displayOp = '×';
+    if (op === '/') displayOp = '÷';
+
+    if (calculatedResult !== null) {
+      setExpression(calculatedResult.replace('.', ',') + displayOp);
+      setCalculatedResult(null);
+      return;
     }
-    setWaiting(true);
-    setOperator(nextOp);
+
+    const lastChar = expression.slice(-1);
+    if (['+', '-', '×', '÷'].includes(lastChar)) {
+      setExpression(expression.slice(0, -1) + displayOp);
+    } else {
+       // Also evaluate intermediate if needed, but the user wants to see the expression!
+      setExpression(expression + displayOp);
+    }
   };
 
   const calculate = () => {
-    if (operator && !waiting) {
-      performOp(operator);
-      setOperator(null);
-      setPrev(null);
+    const res = safeEval(expression);
+    if (res !== null) {
+      const rounded = Math.round(res * 1000000000) / 1000000000;
+      setCalculatedResult(String(rounded));
     }
   };
 
-  const valNum = parseInt(display || '0', 10) / 100;
+  const formatExpression = (expr: string) => {
+    return expr.replace(/\d+(,\d+)?/g, (match) => {
+      const parts = match.split(',');
+      const intPart = parseInt(parts[0] || '0', 10);
+      const formattedInt = isNaN(intPart) ? '0' : new Intl.NumberFormat('pt-BR').format(intPart);
+      if (parts.length > 1) {
+        return formattedInt + ',' + parts[1];
+      }
+      return formattedInt;
+    });
+  };
+
+  const valNum = calculatedResult !== null ? parseFloat(calculatedResult) : (safeEval(expression) || 0);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
         <div className="flex flex-col">
           <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Calculadora Principal</span>
-          <span className="text-[10px] opacity-40 transition-colors" style={{ color: currentTheme }}>𝕽𝖊𝖓𝖆𝖙𝖋𝖎𝖓𝖆𝖑</span>
-        </div>
-        <div className="relative">
-          <button 
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className="text-[#0F0F11] text-[11px] font-extrabold px-3 py-1.5 rounded border border-transparent hover:brightness-110 active:scale-95 transition-all tracking-wider"
-            style={{ backgroundColor: currentTheme }}
-          >
-            COLOR
-          </button>
-          
-          <AnimatePresence>
-            {showColorPicker && (
-              <motion.div 
-                initial={{ opacity: 0, y: 5, scale: 0.9 }} 
-                animate={{ opacity: 1, y: 0, scale: 1 }} 
-                exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                className="absolute right-0 top-full mt-2 bg-[#1A1B1E] border border-[#2D2E33] rounded-lg p-2 flex gap-2 z-50 shadow-2xl"
-              >
-                {colors.map(c => (
-                  <button 
-                    key={c} 
-                    onClick={() => { onThemeChange(c); setShowColorPicker(false); }}
-                    className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                    style={{ backgroundColor: c, borderColor: currentTheme === c ? 'white' : 'transparent' }}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] opacity-40 transition-colors" style={{ color: currentTheme }}>𝕽𝖊𝖓𝖆𝖙𝖋𝖎𝖓𝖆𝖑</span>
         </div>
       </div>
 
       <div className="bg-black p-3 text-right border-b border-[#2D2E33]">
         <div className="text-[12px] opacity-50 mb-1 font-mono text-[#A1A1AA] h-4 leading-none">
-          {prev !== null ? `${format(prev)} ${operator}` : ''}
+          {calculatedResult !== null ? formatExpression(expression) : ''}
         </div>
         <div className="text-[32px] font-mono overflow-x-auto overflow-y-hidden whitespace-nowrap tracking-tighter leading-none transition-colors" style={{ color: currentTheme }}>
-          {formatCalcDisplay(display)}
+          {calculatedResult !== null ? formatExpression(calculatedResult.replace('.', ',')) : formatExpression(expression)}
         </div>
       </div>
 
       <div className="p-4 flex flex-col gap-3">
         <div className="grid grid-cols-4 gap-[8px]">
-          {['C', '(', ')', '/'].map(btn => (
-             <button key={btn} onClick={() => btn === 'C' ? clear() : performOp(btn)} className="bg-[#2D2E33] text-[var(--tc)] active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">
+          {['C', 'DEL', '%', '/'].map(btn => (
+             <button 
+               key={btn} 
+               onClick={() => {
+                 if (btn === 'C') clear();
+                 else if (btn === 'DEL') backspace();
+                 else if (btn === '%') percent();
+                 else performOp(btn);
+               }} 
+               className="bg-[#2D2E33] text-[var(--tc)] active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[15px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none"
+             >
                {btn === '/' ? '÷' : btn}
              </button>
           ))}
@@ -515,7 +580,7 @@ function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { on
              </button>
           ))}
           <button onClick={() => inputDigit('0')} className="col-span-2 bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">0</button>
-          <button onClick={() => inputDoubleZero()} className="bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">00</button>
+          <button onClick={() => inputComma()} className="bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">,</button>
           <button onClick={calculate} className="bg-[var(--tc)] text-[#0F0F11] active:!bg-white rounded-[8px] h-[54px] text-[18px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">=</button>
         </div>
 
