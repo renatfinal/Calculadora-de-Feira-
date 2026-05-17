@@ -685,7 +685,20 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
             Histórico ({history.length})
           </button>
           <button 
-            onClick={() => setView('fixed')} 
+            onClick={() => {
+              if (selectedItems.length > 0) {
+                 const newFixedItems = cart
+                   .filter(item => selectedItems.includes(item.id))
+                   .filter(item => !fixedList.some(f => f.name.toLowerCase() === item.name.toLowerCase()))
+                   .map(item => ({ id: Date.now().toString() + Math.random().toString(), name: item.name, checked: false }));
+
+                 if(newFixedItems.length > 0) {
+                   onUpdateFixedList([...fixedList, ...newFixedItems]);
+                 }
+                 setSelectedItems([]);
+              }
+              setView('fixed');
+            }} 
             className={`px-3 py-1.5 rounded-[6px] text-[11px] font-bold uppercase transition-colors ${view === 'fixed' ? 'bg-[#2D2E33] text-white' : 'text-[#A1A1AA] hover:text-white'}`}
           >
             Fixa
@@ -730,7 +743,7 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
              <div className="flex flex-col items-center justify-center py-10 text-[#A1A1AA] space-y-4">
                <ShoppingCart size={48} className="opacity-20" />
                <p className="text-[12px] font-bold uppercase tracking-widest text-[#A1A1AA]">Carrinho Vazio</p>
-               <button onClick={() => setScanning(true)} className="mt-4 flex items-center justify-center gap-2 bg-[#2D2E33] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#323338] transition-colors text-[13px] uppercase tracking-wider">
+               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setScanning(true); }} className="relative z-10 cursor-pointer active:scale-95 mt-4 flex items-center justify-center gap-2 bg-[#2D2E33] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#323338] transition-all text-[13px] uppercase tracking-wider">
                  <Barcode size={18} /> Escanear Código
                </button>
              </div>
