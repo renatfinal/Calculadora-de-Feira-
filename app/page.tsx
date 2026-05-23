@@ -334,12 +334,16 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
           />
         </div>
 
-        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[8px] py-1.5 px-3 flex flex-col items-center justify-center">
+        <button 
+           onClick={handleAdd}
+           disabled={calculated <= 0}
+           className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[8px] py-1.5 px-3 flex flex-col items-center justify-center w-full transition-colors hover:bg-[var(--tc)]/10 active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+        >
           <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-0.5">Valor Estimado</div>
           <div className="text-[24px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
             {format(calculated)}
           </div>
-        </div>
+        </button>
       </div>
     </motion.div>
   );
@@ -410,12 +414,16 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
           />
         </div>
 
-        <div className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[8px] py-1.5 px-3 flex flex-col items-center justify-center">
+        <button 
+           onClick={handleAdd}
+           disabled={calculated <= 0}
+           className="bg-[var(--tc)]/5 border border-dashed border-[var(--tc)] rounded-[8px] py-1.5 px-3 flex flex-col items-center justify-center w-full transition-colors hover:bg-[var(--tc)]/10 active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+        >
           <div className="text-[10px] font-semibold text-[#A1A1AA] uppercase mb-0.5">Valor Estimado</div>
           <div className="text-[24px] font-mono text-[var(--tc)] font-bold tracking-tighter leading-none">
             {format(calculated)}
           </div>
-        </div>
+        </button>
       </div>
     </motion.div>
   );
