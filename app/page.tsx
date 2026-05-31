@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, Calculator as CalcIcon, Scale, List as ListIcon, Trash2, Plus, X, Layers, Barcode, CheckCircle, Clock, Search, ChevronDown, ChevronUp, CheckSquare, Square, Check } from 'lucide-react';
+import { ShoppingCart, Calculator as CalcIcon, Scale, List as ListIcon, Trash2, Plus, X, Layers, Barcode, CheckCircle, Clock, Search, ChevronDown, ChevronUp, CheckSquare, Square, Check, Edit2 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 interface CartItem {
@@ -161,6 +161,18 @@ export default function App() {
     }
   };
 
+  const renameHistoryItem = (purchaseId: string, itemId: string, newName: string) => {
+    setHistory(history.map(p => {
+      if (p.id === purchaseId) {
+        return {
+          ...p,
+          items: p.items.map(item => item.id === itemId ? { ...item, name: newName } : item)
+        };
+      }
+      return p;
+    }));
+  };
+
   const finishShopping = () => {
     if (cart.length === 0) return;
     // eslint-disable-next-line react-hooks/purity
@@ -236,8 +248,9 @@ export default function App() {
           {activeTab === 'peso' && <WeightCalculator key="peso" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
           {activeTab === 'unidade' && <UnitCalculator key="unidade" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
           {activeTab === 'calc' && <StandardCalculator key="calc" onAdd={addToCart} format={formatCurrency} currentTheme={themeColor} onThemeChange={setThemeColor} />}
-          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} fixedList={fixedList} onUpdateFixedList={setFixedList} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
+          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} fixedList={fixedList} onUpdateFixedList={setFixedList} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onRenameHistoryItem={renameHistoryItem} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
         </AnimatePresence>
+
       </main>
 
       <nav className="fixed bottom-0 w-full bg-[#0F0F11] border-t border-[#2D2E33] z-40 pb-safe">
@@ -429,9 +442,12 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
   );
 }
 
+import { Store, ExternalLink } from 'lucide-react';
+
 function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { onAdd: any, format: any, currentTheme: string, onThemeChange: (c: string) => void }) {
   const [expression, setExpression] = useState('0');
   const [calculatedResult, setCalculatedResult] = useState<string | null>(null);
+  const [showMarkets, setShowMarkets] = useState(false);
 
   const safeEval = (expr: string) => {
     try {
@@ -541,83 +557,109 @@ function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { on
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl">
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
-        <div className="flex flex-col">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#A1A1AA]">Calculadora Principal</span>
-          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] opacity-40 transition-colors" style={{ color: currentTheme }}>𝕽𝖊𝖓𝖆𝖙𝖋𝖎𝖓𝖆𝖑</span>
-        </div>
-      </div>
-
-      <div className="bg-black p-3 text-right border-b border-[#2D2E33]">
-        <div className="text-[12px] opacity-50 mb-1 font-mono text-[#A1A1AA] h-4 leading-none">
-          {calculatedResult !== null ? formatExpression(expression) : ''}
-        </div>
-        <div className="text-[32px] font-mono overflow-x-auto overflow-y-hidden whitespace-nowrap tracking-tighter leading-none transition-colors" style={{ color: currentTheme }}>
-          {calculatedResult !== null ? formatExpression(calculatedResult.replace('.', ',')) : formatExpression(expression)}
-        </div>
-      </div>
-
-      <div className="p-4 flex flex-col gap-3">
-        <div className="grid grid-cols-4 gap-[8px]">
-          {['C', 'DEL', '%', '/'].map(btn => (
-             <button 
-               key={btn} 
-               onClick={() => {
-                 if (btn === 'C') clear();
-                 else if (btn === 'DEL') backspace();
-                 else if (btn === '%') percent();
-                 else performOp(btn);
-               }} 
-               className="bg-[#2D2E33] text-[var(--tc)] active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[15px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none"
-             >
-               {btn === '/' ? '÷' : btn}
-             </button>
-          ))}
-          {['7', '8', '9', '*'].map(btn => (
-             <button key={btn} onClick={() => btn === '*' ? performOp(btn) : inputDigit(btn)} className={`${btn === '*' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
-               {btn === '*' ? '×' : btn}
-             </button>
-          ))}
-          {['4', '5', '6', '-'].map(btn => (
-             <button key={btn} onClick={() => btn === '-' ? performOp(btn) : inputDigit(btn)} className={`${btn === '-' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
-               {btn}
-             </button>
-          ))}
-          {['1', '2', '3', '+'].map(btn => (
-             <button key={btn} onClick={() => btn === '+' ? performOp(btn) : inputDigit(btn)} className={`${btn === '+' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
-               {btn}
-             </button>
-          ))}
-          <button onClick={() => inputDigit('0')} className="col-span-2 bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">0</button>
-          <button onClick={() => inputComma()} className="bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">,</button>
-          <button onClick={calculate} className="bg-[var(--tc)] text-[#0F0F11] active:!bg-white rounded-[8px] h-[54px] text-[18px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">=</button>
-        </div>
-
         <button 
-          onClick={() => {
-            if (valNum > 0) {
-               onAdd('', 'calc', 'Adicionado via Calculadora', valNum);
-               clear();
-            }
-          }}
-          disabled={valNum <= 0}
-          className="mt-2 bg-transparent border disabled:opacity-30 transition-all font-bold h-[54px] rounded-[8px] flex items-center justify-center cursor-pointer gap-2 text-[14px] uppercase tracking-wide"
-          style={valNum > 0 ? { 
-            borderColor: currentTheme, 
-            color: currentTheme,
-            backgroundColor: `${currentTheme}1A` 
-          } : {
-            borderColor: currentTheme,
-            color: currentTheme
-          }}
+          onClick={() => setShowMarkets(!showMarkets)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer active:scale-95 text-[#0F0F11] font-bold uppercase tracking-wider text-[11px]"
+          style={{ backgroundColor: currentTheme }}
         >
-          <Plus size={16} /> ADICIONAR: {format(valNum)}
+          <Store size={14} /> {showMarkets ? 'FECHAR MERCADOS' : 'MERCADOS'}
         </button>
       </div>
+
+      {showMarkets ? (
+        <div className="p-4 flex flex-col gap-4">
+          <a href="https://share.google/KOGMewuErmzZDpMB0" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer">
+            <span className="font-bold text-white text-[14px]">Condor</span>
+            <ExternalLink size={16} className="text-[#A1A1AA]" />
+          </a>
+          <a href="https://share.google/gtBwDOLZAS5W6d5Md" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer">
+            <span className="font-bold text-white text-[14px]">Paraná Supermercados</span>
+            <ExternalLink size={16} className="text-[#A1A1AA]" />
+          </a>
+          <a href="https://share.google/6BdWOD563lkEU4qGA" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer">
+            <span className="font-bold text-white text-[14px]">Super Muffato</span>
+            <ExternalLink size={16} className="text-[#A1A1AA]" />
+          </a>
+          <a href="https://share.google/xDUXmwPWjk2iuiV8I" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer">
+            <span className="font-bold text-white text-[14px]">Supermercados Bom Dia</span>
+            <ExternalLink size={16} className="text-[#A1A1AA]" />
+          </a>
+        </div>
+      ) : (
+        <>
+          <div className="bg-black p-3 text-right border-b border-[#2D2E33]">
+            <div className="text-[12px] opacity-50 mb-1 font-mono text-[#A1A1AA] h-4 leading-none">
+              {calculatedResult !== null ? formatExpression(expression) : ''}
+            </div>
+            <div className="text-[32px] font-mono overflow-x-auto overflow-y-hidden whitespace-nowrap tracking-tighter leading-none transition-colors" style={{ color: currentTheme }}>
+              {calculatedResult !== null ? formatExpression(calculatedResult.replace('.', ',')) : formatExpression(expression)}
+            </div>
+          </div>
+
+          <div className="p-4 flex flex-col gap-3">
+            <div className="grid grid-cols-4 gap-[8px]">
+              {['C', 'DEL', '%', '/'].map(btn => (
+                 <button 
+                   key={btn} 
+                   onClick={() => {
+                     if (btn === 'C') clear();
+                     else if (btn === 'DEL') backspace();
+                     else if (btn === '%') percent();
+                     else performOp(btn);
+                   }} 
+                   className="bg-[#2D2E33] text-[var(--tc)] active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[15px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none"
+                 >
+                   {btn === '/' ? '÷' : btn}
+                 </button>
+              ))}
+              {['7', '8', '9', '*'].map(btn => (
+                 <button key={btn} onClick={() => btn === '*' ? performOp(btn) : inputDigit(btn)} className={`${btn === '*' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
+                   {btn === '*' ? '×' : btn}
+                 </button>
+              ))}
+              {['4', '5', '6', '-'].map(btn => (
+                 <button key={btn} onClick={() => btn === '-' ? performOp(btn) : inputDigit(btn)} className={`${btn === '-' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
+                   {btn}
+                 </button>
+              ))}
+              {['1', '2', '3', '+'].map(btn => (
+                 <button key={btn} onClick={() => btn === '+' ? performOp(btn) : inputDigit(btn)} className={`${btn === '+' ? 'bg-[#2D2E33] text-[var(--tc)]' : 'bg-[#26272B] text-white'} active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none`}>
+                   {btn}
+                 </button>
+              ))}
+              <button onClick={() => inputDigit('0')} className="col-span-2 bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">0</button>
+              <button onClick={() => inputComma()} className="bg-[#26272B] text-white active:!bg-[var(--tc)] active:!text-[#0F0F11] rounded-[8px] h-[54px] text-[18px] font-medium active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">,</button>
+              <button onClick={calculate} className="bg-[var(--tc)] text-[#0F0F11] active:!bg-white rounded-[8px] h-[54px] text-[18px] font-bold active:scale-95 transition-all flex items-center justify-center cursor-pointer select-none">=</button>
+            </div>
+
+            <button 
+              onClick={() => {
+                if (valNum > 0) {
+                   onAdd('', 'calc', 'Adicionado via Calculadora', valNum);
+                   clear();
+                }
+              }}
+              disabled={valNum <= 0}
+              className="mt-2 bg-transparent border disabled:opacity-30 transition-all font-bold h-[54px] rounded-[8px] flex items-center justify-center cursor-pointer gap-2 text-[14px] uppercase tracking-wide"
+              style={valNum > 0 ? { 
+                borderColor: currentTheme, 
+                color: currentTheme,
+                backgroundColor: `${currentTheme}1A` 
+              } : {
+                borderColor: currentTheme,
+                color: currentTheme
+              }}
+            >
+              <Plus size={16} /> ADICIONAR: {format(valNum)}
+            </button>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }
 
-function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, onRemoveMultiple, onClear, onClearHistory, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], fixedList: FixedItem[], onUpdateFixedList: any, onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onFinish: any, format: any, onScan: (name: string) => void }) {
+function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, onRemoveMultiple, onClear, onClearHistory, onRenameHistoryItem, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], fixedList: FixedItem[], onUpdateFixedList: any, onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onRenameHistoryItem: any, onFinish: any, format: any, onScan: (name: string) => void }) {
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'current' | 'history' | 'fixed'>('current');
@@ -625,6 +667,8 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [newFixedItem, setNewFixedItem] = useState('');
+  const [editingItem, setEditingItem] = useState<{ purchaseId: string, itemId: string } | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const handleAddFixedItem = () => {
     if (!newFixedItem.trim()) return;
@@ -864,9 +908,50 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
                            className="bg-black/50 border-t border-[#2D2E33] px-3 py-2 flex flex-col gap-2"
                          >
                            {purchase.items.map(item => (
-                             <div key={item.id} className="flex justify-between items-center py-1 border-b border-[#2D2E33]/50 last:border-0">
-                               <div className="flex-1 pr-2">
-                                 <div className="text-[12px] font-semibold text-white truncate">{item.name}</div>
+                             <div key={item.id} className="flex justify-between items-center py-2 border-b border-[#2D2E33]/50 last:border-0 relative">
+                               <div className="flex-1 pr-2 min-w-0">
+                                 {editingItem?.purchaseId === purchase.id && editingItem?.itemId === item.id ? (
+                                   <div className="flex items-center gap-2 mb-1 w-full" onClick={e => e.stopPropagation()}>
+                                     <input 
+                                       type="text"
+                                       autoFocus
+                                       value={editingName}
+                                       onChange={(e) => setEditingName(e.target.value)}
+                                       className="bg-[#0F0F11] border border-[var(--tc)] text-white text-[12px] px-2 py-1 rounded w-full outline-none focus:ring-1 focus:ring-[var(--tc)]"
+                                       onBlur={() => {
+                                         if (editingName.trim() && editingName.trim() !== item.name) {
+                                           onRenameHistoryItem(purchase.id, item.id, editingName.trim());
+                                         }
+                                         setEditingItem(null);
+                                       }}
+                                       onKeyDown={(e) => {
+                                         if (e.key === 'Enter') {
+                                           if (editingName.trim() && editingName.trim() !== item.name) {
+                                             onRenameHistoryItem(purchase.id, item.id, editingName.trim());
+                                           }
+                                           setEditingItem(null);
+                                         } else if (e.key === 'Escape') {
+                                           setEditingItem(null);
+                                         }
+                                       }}
+                                     />
+                                   </div>
+                                 ) : (
+                                   <div className="group flex items-center gap-2">
+                                     <div className="text-[12px] font-semibold text-white truncate">{item.name}</div>
+                                     <button 
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         setEditingItem({ purchaseId: purchase.id, itemId: item.id });
+                                         setEditingName(item.name);
+                                       }}
+                                       className="text-[#A1A1AA] hover:text-white transition-colors cursor-pointer active:scale-95 px-1 py-1 -ml-1"
+                                       title="Renomear Item"
+                                     >
+                                       <Edit2 size={12} />
+                                     </button>
+                                   </div>
+                                 )}
                                  <div className="text-[10px] text-[#A1A1AA]">{item.details}</div>
                                </div>
                                <div className="text-[12px] font-mono text-[#A1A1AA]">{format(item.value)}</div>
