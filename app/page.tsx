@@ -12,6 +12,9 @@ interface CartItem {
   details: string;
   value: number;
   timestamp: number;
+  quantity?: number;
+  weight?: number;
+  unitPrice?: number;
 }
 
 interface Purchase {
@@ -126,7 +129,7 @@ export default function App() {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  const addToCart = (name: string, type: 'peso' | 'unidade' | 'calc', details: string, value: number) => {
+  const addToCart = (name: string, type: 'peso' | 'unidade' | 'calc', details: string, value: number, quantity?: number, weight?: number, unitPrice?: number) => {
     if (value <= 0) return;
     const newItem: CartItem = {
       id: Math.random().toString(36).substr(2, 9),
@@ -134,7 +137,10 @@ export default function App() {
       type,
       details,
       value,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      quantity,
+      weight,
+      unitPrice
     };
     setCart([newItem, ...cart]);
     setActiveTab('lista');
@@ -161,16 +167,20 @@ export default function App() {
     }
   };
 
-  const renameHistoryItem = (purchaseId: string, itemId: string, newName: string) => {
+  const updateHistoryItem = (purchaseId: string, itemId: string, updates: Partial<CartItem>) => {
     setHistory(history.map(p => {
       if (p.id === purchaseId) {
         return {
           ...p,
-          items: p.items.map(item => item.id === itemId ? { ...item, name: newName } : item)
+          items: p.items.map(item => item.id === itemId ? { ...item, ...updates } : item)
         };
       }
       return p;
     }));
+  };
+
+  const updateCartItem = (itemId: string, updates: Partial<CartItem>) => {
+    setCart(cart.map(item => item.id === itemId ? { ...item, ...updates } : item));
   };
 
   const finishShopping = () => {
@@ -248,7 +258,7 @@ export default function App() {
           {activeTab === 'peso' && <WeightCalculator key="peso" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
           {activeTab === 'unidade' && <UnitCalculator key="unidade" onAdd={addToCart} format={formatCurrency} parse={parseInput} scannedName={scannedName} />}
           {activeTab === 'calc' && <StandardCalculator key="calc" onAdd={addToCart} format={formatCurrency} currentTheme={themeColor} onThemeChange={setThemeColor} />}
-          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} fixedList={fixedList} onUpdateFixedList={setFixedList} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onRenameHistoryItem={renameHistoryItem} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
+          {activeTab === 'lista' && <ShoppingList key="lista" cart={cart} history={history} fixedList={fixedList} onUpdateFixedList={setFixedList} onRemove={removeFromCart} onRemoveMultiple={removeMultipleFromCart} onClear={clearCart} onClearHistory={clearHistory} onUpdateHistoryItem={updateHistoryItem} onUpdateCartItem={updateCartItem} onFinish={finishShopping} format={formatCurrency} onScan={(name) => { setScannedName(name); setActiveTab('unidade'); }} />}
         </AnimatePresence>
 
       </main>
@@ -301,7 +311,7 @@ function WeightCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, f
 
   const handleAdd = () => {
     if (calculated > 0) {
-      onAdd(name, 'peso', `${w}g @ ${format(p)}/kg`, calculated);
+      onAdd(name, 'peso', `${w}g @ ${format(p)}/kg`, calculated, undefined, w, p);
       setPriceKg(''); setWeight(''); setName('');
     }
   };
@@ -380,7 +390,7 @@ function UnitCalculator({ onAdd, format, parse, scannedName }: { onAdd: any, for
 
   const handleAdd = () => {
     if (calculated > 0) {
-      onAdd(name, 'unidade', `${q}x @ ${format(p)}/un`, calculated);
+      onAdd(name, 'unidade', `${q}x @ ${format(p)}/un`, calculated, q, undefined, p);
       setPrice(''); setQtd(''); setName('');
     }
   };
@@ -659,7 +669,46 @@ function StandardCalculator({ onAdd, format, currentTheme, onThemeChange }: { on
   );
 }
 
-function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, onRemoveMultiple, onClear, onClearHistory, onRenameHistoryItem, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], fixedList: FixedItem[], onUpdateFixedList: any, onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onRenameHistoryItem: any, onFinish: any, format: any, onScan: (name: string) => void }) {
+function EditItemForm({ item, form, setForm, onSave, onCancel }: { item: CartItem, form: any, setForm: any, onSave: any, onCancel: any }) {
+   return (
+      <div className="flex flex-col gap-2 w-full p-2 bg-[#0F0F11]/80 border border-[var(--tc)]/50 rounded-lg mt-1 mb-1 relative" onClick={e => e.stopPropagation()}>
+         <div className="flex flex-col gap-1">
+            <label className="text-[9px] uppercase text-[#A1A1AA] font-bold tracking-wider">Nome do Produto</label>
+            <input type="text" autoFocus value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="bg-[#0F0F11] border border-[#2D2E33] text-white text-[13px] px-2 py-1.5 rounded outline-none focus:border-[var(--tc)] transition-colors" />
+         </div>
+         {item.type === 'unidade' && (
+            <div className="flex gap-2">
+               <div className="flex flex-col gap-1 flex-1">
+                  <label className="text-[9px] uppercase text-[#A1A1AA] font-bold tracking-wider">Qtd</label>
+                  <input type="text" inputMode="numeric" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="bg-[#0F0F11] border border-[#2D2E33] text-white text-[13px] px-2 py-1.5 rounded outline-none focus:border-[var(--tc)] transition-colors" />
+               </div>
+               <div className="flex flex-col gap-1 flex-1">
+                  <label className="text-[9px] uppercase text-[#A1A1AA] font-bold tracking-wider">Preço Un (R$)</label>
+                  <input type="text" inputMode="decimal" value={form.unitPrice} onChange={e => setForm({...form, unitPrice: e.target.value})} className="bg-[#0F0F11] border border-[#2D2E33] text-white text-[13px] px-2 py-1.5 rounded outline-none focus:border-[var(--tc)] transition-colors" />
+               </div>
+            </div>
+         )}
+         {item.type === 'peso' && (
+            <div className="flex gap-2">
+               <div className="flex flex-col gap-1 flex-1">
+                  <label className="text-[9px] uppercase text-[#A1A1AA] font-bold tracking-wider">Peso (g)</label>
+                  <input type="text" inputMode="numeric" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="bg-[#0F0F11] border border-[#2D2E33] text-white text-[13px] px-2 py-1.5 rounded outline-none focus:border-[var(--tc)] transition-colors" />
+               </div>
+               <div className="flex flex-col gap-1 flex-1">
+                  <label className="text-[9px] uppercase text-[#A1A1AA] font-bold tracking-wider">Preço Kg (R$)</label>
+                  <input type="text" inputMode="decimal" value={form.unitPrice} onChange={e => setForm({...form, unitPrice: e.target.value})} className="bg-[#0F0F11] border border-[#2D2E33] text-white text-[13px] px-2 py-1.5 rounded outline-none focus:border-[var(--tc)] transition-colors" />
+               </div>
+            </div>
+         )}
+         <div className="flex justify-end gap-2 mt-1">
+            <button onClick={onCancel} className="px-3 py-1.5 rounded-[6px] bg-[#2D2E33] text-white text-[11px] font-bold hover:bg-[#3E3F44] transition-colors cursor-pointer">CANCELA</button>
+            <button onClick={onSave} className="px-3 py-1.5 rounded-[6px] bg-[var(--tc)] text-[#0F0F11] text-[11px] font-bold hover:opacity-80 transition-colors cursor-pointer">SALVAR</button>
+         </div>
+      </div>
+   );
+}
+
+function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, onRemoveMultiple, onClear, onClearHistory, onUpdateHistoryItem, onUpdateCartItem, onFinish, format, onScan }: { cart: CartItem[], history: Purchase[], fixedList: FixedItem[], onUpdateFixedList: any, onRemove: any, onRemoveMultiple: any, onClear: any, onClearHistory: any, onUpdateHistoryItem: any, onUpdateCartItem: any, onFinish: any, format: any, onScan: (name: string) => void }) {
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'current' | 'history' | 'fixed'>('current');
@@ -667,8 +716,79 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [newFixedItem, setNewFixedItem] = useState('');
-  const [editingItem, setEditingItem] = useState<{ purchaseId: string, itemId: string } | null>(null);
-  const [editingName, setEditingName] = useState('');
+  const [editingItem, setEditingItem] = useState<{ isCart: boolean, purchaseId?: string, itemId: string } | null>(null);
+  const [editForm, setEditForm] = useState<{name: string, quantity?: string, weight?: string, unitPrice?: string}>({name: ''});
+
+  const startEditing = (item: CartItem, isCart: boolean, purchaseId?: string) => {
+     let parsedQty = item.quantity?.toString() || '';
+     let parsedWeight = item.weight?.toString() || '';
+     let parsedPrice = item.unitPrice !== undefined ? item.unitPrice.toString() : '';
+
+     if (!item.quantity && !item.weight && item.unitPrice === undefined && item.details) {
+         if (item.type === 'unidade') {
+             const m = item.details.match(/^(\d+)x\s+@\s+.*?([\d,\.]+)\/un/);
+             if (m) {
+                 parsedQty = m[1];
+                 parsedPrice = parseFloat(m[2].replace(/\./g, '').replace(',', '.')).toString();
+             }
+         } else if (item.type === 'peso') {
+             const m = item.details.match(/^(\d+)g\s+@\s+.*?([\d,\.]+)\/kg/);
+             if (m) {
+                 parsedWeight = m[1];
+                 parsedPrice = parseFloat(m[2].replace(/\./g, '').replace(',', '.')).toString();
+             }
+         }
+     }
+
+     setEditingItem({ isCart, purchaseId, itemId: item.id });
+     setEditForm({
+        name: item.name,
+        quantity: parsedQty,
+        weight: parsedWeight,
+        unitPrice: parsedPrice
+     });
+  };
+
+  const saveEdit = (item: CartItem) => {
+     if (!editingItem) return;
+     let updatedDetails = item.details;
+     let updatedValue = item.value;
+     let updatedQty = item.quantity;
+     let updatedW = item.weight;
+     let updatedP = item.unitPrice;
+
+     if (item.type === 'unidade' && editForm.quantity && editForm.unitPrice) {
+         updatedQty = parseInt(editForm.quantity.replace(/\D/g, ''));
+         updatedP = parseFloat(editForm.unitPrice.replace(',', '.'));
+         if (!isNaN(updatedQty) && !isNaN(updatedP)) {
+            updatedValue = updatedP * updatedQty;
+            updatedDetails = `${updatedQty}x @ ${format(updatedP)}/un`;
+         }
+     } else if (item.type === 'peso' && editForm.weight && editForm.unitPrice) {
+         updatedW = parseInt(editForm.weight.replace(/\D/g, ''));
+         updatedP = parseFloat(editForm.unitPrice.replace(',', '.'));
+         if (!isNaN(updatedW) && !isNaN(updatedP)) {
+            updatedValue = updatedP * (updatedW / 1000);
+            updatedDetails = `${updatedW}g @ ${format(updatedP)}/kg`;
+         }
+     }
+
+     const updates = {
+         name: editForm.name.trim() || item.name,
+         details: updatedDetails,
+         value: updatedValue,
+         quantity: updatedQty,
+         weight: updatedW,
+         unitPrice: updatedP
+     };
+
+     if (editingItem.isCart) {
+         onUpdateCartItem(editingItem.itemId, updates);
+     } else if (editingItem.purchaseId) {
+         onUpdateHistoryItem(editingItem.purchaseId, editingItem.itemId, updates);
+     }
+     setEditingItem(null);
+  };
 
   const handleAddFixedItem = () => {
     if (!newFixedItem.trim()) return;
@@ -823,8 +943,26 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
                   {isSelected ? <CheckSquare size={18} className="text-[var(--tc)]" /> : <Square size={18} />}
                 </button>
                 <div className="flex-1 min-w-0 pr-4 pl-1">
-                  <h3 className="font-semibold text-[14px] text-white truncate">{item.name}</h3>
-                  <p className="text-[12px] text-[#A1A1AA] truncate">{item.details}</p>
+                  {editingItem?.isCart && editingItem?.itemId === item.id ? (
+                     <EditItemForm item={item} form={editForm} setForm={setEditForm} onSave={() => saveEdit(item)} onCancel={() => setEditingItem(null)} />
+                  ) : (
+                    <div className="group flex items-center gap-2">
+                      <div className="flex flex-col min-w-0">
+                        <h3 className="font-semibold text-[14px] text-white truncate">{item.name}</h3>
+                        <p className="text-[12px] text-[#A1A1AA] truncate">{item.details}</p>
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEditing(item, true);
+                        }}
+                        className="text-[#A1A1AA] hover:text-[var(--tc)] transition-colors cursor-pointer active:scale-95 px-1 py-1 -ml-1"
+                        title="Editar Item"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-[16px] text-white whitespace-nowrap">{format(item.value)}</span>
@@ -911,42 +1049,17 @@ function ShoppingList({ cart, history, fixedList, onUpdateFixedList, onRemove, o
                              <div key={item.id} className="flex justify-between items-center py-2 border-b border-[#2D2E33]/50 last:border-0 relative">
                                <div className="flex-1 pr-2 min-w-0">
                                  {editingItem?.purchaseId === purchase.id && editingItem?.itemId === item.id ? (
-                                   <div className="flex items-center gap-2 mb-1 w-full" onClick={e => e.stopPropagation()}>
-                                     <input 
-                                       type="text"
-                                       autoFocus
-                                       value={editingName}
-                                       onChange={(e) => setEditingName(e.target.value)}
-                                       className="bg-[#0F0F11] border border-[var(--tc)] text-white text-[12px] px-2 py-1 rounded w-full outline-none focus:ring-1 focus:ring-[var(--tc)]"
-                                       onBlur={() => {
-                                         if (editingName.trim() && editingName.trim() !== item.name) {
-                                           onRenameHistoryItem(purchase.id, item.id, editingName.trim());
-                                         }
-                                         setEditingItem(null);
-                                       }}
-                                       onKeyDown={(e) => {
-                                         if (e.key === 'Enter') {
-                                           if (editingName.trim() && editingName.trim() !== item.name) {
-                                             onRenameHistoryItem(purchase.id, item.id, editingName.trim());
-                                           }
-                                           setEditingItem(null);
-                                         } else if (e.key === 'Escape') {
-                                           setEditingItem(null);
-                                         }
-                                       }}
-                                     />
-                                   </div>
+                                   <EditItemForm item={item} form={editForm} setForm={setEditForm} onSave={() => saveEdit(item)} onCancel={() => setEditingItem(null)} />
                                  ) : (
                                    <div className="group flex items-center gap-2">
                                      <div className="text-[12px] font-semibold text-white truncate">{item.name}</div>
                                      <button 
                                        onClick={(e) => {
                                          e.stopPropagation();
-                                         setEditingItem({ purchaseId: purchase.id, itemId: item.id });
-                                         setEditingName(item.name);
+                                         startEditing(item, false, purchase.id);
                                        }}
                                        className="text-[#A1A1AA] hover:text-white transition-colors cursor-pointer active:scale-95 px-1 py-1 -ml-1"
-                                       title="Renomear Item"
+                                       title="Editar Item"
                                      >
                                        <Edit2 size={12} />
                                      </button>
