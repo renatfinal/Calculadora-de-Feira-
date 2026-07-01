@@ -94,7 +94,7 @@ export default function App() {
   const [scannedName, setScannedName] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  const colors = ["#C1FF72", "#00E5FF", "#FF00FF", "#FFEA00", "#FF6D00"];
+  const colors = ["#C1FF72", "#FFEA00", "#FF6D00", "#FF00FF", "#9D00FF", "#00FFFF", "#39FF14"];
 
   useEffect(() => {
     const saved = localStorage.getItem("@CalculadoraFeira:cart");
@@ -211,6 +211,12 @@ export default function App() {
   const clearHistory = () => {
     if (confirm("Tem certeza que deseja apagar todo o histórico de compras?")) {
       setHistory([]);
+    }
+  };
+
+  const removeHistoryItems = (ids: string[]) => {
+    if (confirm("Tem certeza que deseja apagar o histórico selecionado?")) {
+      setHistory(history.filter((p) => !ids.includes(p.id)));
     }
   };
 
@@ -352,6 +358,7 @@ export default function App() {
               onRemoveMultiple={removeMultipleFromCart}
               onClear={clearCart}
               onClearHistory={clearHistory}
+              onRemoveHistoryItems={removeHistoryItems}
               onUpdateHistoryItem={updateHistoryItem}
               onUpdateCartItem={updateCartItem}
               onFinish={finishShopping}
@@ -1115,6 +1122,7 @@ function ShoppingList({
   onRemoveMultiple,
   onClear,
   onClearHistory,
+  onRemoveHistoryItems,
   onUpdateHistoryItem,
   onUpdateCartItem,
   onFinish,
@@ -1129,6 +1137,7 @@ function ShoppingList({
   onRemoveMultiple: any;
   onClear: any;
   onClearHistory: any;
+  onRemoveHistoryItems: (ids: string[]) => void;
   onUpdateHistoryItem: any;
   onUpdateCartItem: any;
   onFinish: any;
@@ -1141,6 +1150,7 @@ function ShoppingList({
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [newFixedItem, setNewFixedItem] = useState("");
   const [editingItem, setEditingItem] = useState<{
     isCart: boolean;
@@ -1396,17 +1406,24 @@ function ShoppingList({
               <Barcode size={18} />
             </button>
           </div>
-        ) : (
+        ) : view === "history" ? (
           history.length > 0 && (
             <button
-              onClick={onClearHistory}
-              className="text-[#A1A1AA] hover:text-[#FF5555] flex items-center justify-center p-2 mr-1 transition-colors"
-              title="Apagar Histórico"
+              onClick={() => {
+                if (selectedHistoryIds.length > 0) {
+                  onRemoveHistoryItems(selectedHistoryIds);
+                  setSelectedHistoryIds([]);
+                } else {
+                  onClearHistory();
+                }
+              }}
+              className={`${selectedHistoryIds.length > 0 ? "text-[#FF5555]" : "text-[#A1A1AA] hover:text-[#FF5555]"} flex items-center justify-center p-2 mr-1 transition-colors`}
+              title={selectedHistoryIds.length > 0 ? `Apagar selecionados (${selectedHistoryIds.length})` : "Apagar Todo o Histórico"}
             >
               <Trash2 size={16} />
             </button>
           )
-        )}
+        ) : null}
       </div>
 
       {view === "current" && (
@@ -1566,16 +1583,44 @@ function ShoppingList({
               {filteredHistory.map((purchase) => {
                 const date = new Date(purchase.timestamp);
                 const isExpanded = expandedId === purchase.id;
+                const isSelected = selectedHistoryIds.includes(purchase.id);
+                
                 return (
                   <motion.div
                     key={purchase.id}
-                    className="bg-white/[0.03] border border-[#2D2E33] rounded-[8px] overflow-hidden flex flex-col"
+                    className={`bg-white/[0.03] border ${isSelected ? 'border-[#FF5555]' : 'border-[#2D2E33]'} rounded-[8px] overflow-hidden flex flex-col transition-colors`}
                   >
                     <button
-                      onClick={() =>
-                        setExpandedId(isExpanded ? null : purchase.id)
-                      }
-                      className="p-3 flex justify-between items-center text-left hover:bg-white/5 transition-colors"
+                      onPointerDown={() => {
+                        const timer = setTimeout(() => {
+                          if (!selectedHistoryIds.includes(purchase.id)) {
+                            setSelectedHistoryIds([...selectedHistoryIds, purchase.id]);
+                          }
+                        }, 500);
+                        (window as any)[`longPressTimer_${purchase.id}`] = timer;
+                      }}
+                      onPointerUp={() => {
+                        clearTimeout((window as any)[`longPressTimer_${purchase.id}`]);
+                      }}
+                      onPointerLeave={() => {
+                        clearTimeout((window as any)[`longPressTimer_${purchase.id}`]);
+                      }}
+                      onPointerCancel={() => {
+                        clearTimeout((window as any)[`longPressTimer_${purchase.id}`]);
+                      }}
+                      onClick={() => {
+                        if (selectedHistoryIds.length > 0) {
+                          if (isSelected) {
+                            setSelectedHistoryIds(selectedHistoryIds.filter(id => id !== purchase.id));
+                          } else {
+                            setSelectedHistoryIds([...selectedHistoryIds, purchase.id]);
+                          }
+                        } else {
+                          setExpandedId(isExpanded ? null : purchase.id);
+                        }
+                      }}
+                      className={`p-3 flex justify-between items-center text-left hover:bg-white/5 transition-colors ${isSelected ? 'bg-[#FF5555]/10' : ''}`}
+                      style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                     >
                       <div>
                         <div className="font-semibold text-white text-[14px]">
