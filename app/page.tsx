@@ -832,54 +832,42 @@ function StandardCalculator({
           className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer active:scale-95 text-[#0F0F11] font-bold uppercase tracking-wider text-[11px]"
           style={{ backgroundColor: currentTheme }}
         >
-          <Store size={14} /> {showMarkets ? "FECHAR MERCADOS" : "MERCADOS"}
+          {showMarkets ? "FECHAR" : "SEJA UM COLABORADOR"}
         </button>
       </div>
 
       {showMarkets ? (
-        <div className="p-4 flex flex-col gap-4">
-          <a
-            href="https://share.google/KOGMewuErmzZDpMB0"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer"
-          >
-            <span className="font-bold text-white text-[14px]">Condor</span>
-            <ExternalLink size={16} className="text-[#A1A1AA]" />
-          </a>
-          <a
-            href="https://share.google/gtBwDOLZAS5W6d5Md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer"
-          >
-            <span className="font-bold text-white text-[14px]">
-              Paraná Supermercados
-            </span>
-            <ExternalLink size={16} className="text-[#A1A1AA]" />
-          </a>
-          <a
-            href="https://share.google/6BdWOD563lkEU4qGA"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer"
-          >
-            <span className="font-bold text-white text-[14px]">
-              Super Muffato
-            </span>
-            <ExternalLink size={16} className="text-[#A1A1AA]" />
-          </a>
-          <a
-            href="https://share.google/xDUXmwPWjk2iuiV8I"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-4 bg-white/[0.03] border border-[#2D2E33] rounded-[12px] hover:bg-white/[0.08] hover:border-[var(--tc)] transition-all cursor-pointer"
-          >
-            <span className="font-bold text-white text-[14px]">
-              Supermercados Bom Dia
-            </span>
-            <ExternalLink size={16} className="text-[#A1A1AA]" />
-          </a>
+        <div className="p-6 flex flex-col gap-6">
+          <div className="text-center flex flex-col gap-4">
+            <h3 className="text-lg font-bold text-[var(--tc)]">💚 Apoie este projeto</h3>
+            <p className="text-[13px] text-[#A1A1AA] leading-relaxed">
+              Este aplicativo foi desenvolvido de forma independente com dedicação para ajudar pessoas no dia a dia. Se ele tem sido útil para você, considere fazer uma contribuição voluntária.
+            </p>
+            <p className="text-[13px] text-[#A1A1AA] leading-relaxed">
+              Sua ajuda contribui para a manutenção, melhorias, novas funcionalidades e atualizações constantes do aplicativo.
+            </p>
+            <p className="text-[13px] text-[#A1A1AA] leading-relaxed">
+              Muito obrigado pelo seu apoio e por fazer parte deste projeto. 🤝
+            </p>
+          </div>
+          
+          <div className="flex gap-3 justify-center mt-2">
+            <button 
+              onClick={() => setShowMarkets(false)}
+              className="px-6 py-3 rounded-xl font-bold text-white bg-[#2D2E33] hover:bg-[#3E3F44] transition-colors cursor-pointer"
+            >
+              FECHAR
+            </button>
+            <a 
+              href="https://mpago.li/2eBGYCa" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-xl font-bold text-[#0F0F11] hover:opacity-90 transition-opacity flex items-center justify-center"
+              style={{ backgroundColor: currentTheme }}
+            >
+              COLABORE
+            </a>
+          </div>
         </div>
       ) : (
         <>
