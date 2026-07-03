@@ -694,7 +694,7 @@ function UnitCalculator({
   );
 }
 
-import { Store, ExternalLink } from "lucide-react";
+import { Store, ExternalLink, ArrowRightLeft } from "lucide-react";
 
 function StandardCalculator({
   onAdd,
@@ -710,6 +710,25 @@ function StandardCalculator({
   const [expression, setExpression] = useState("0");
   const [calculatedResult, setCalculatedResult] = useState<string | null>(null);
   const [showMarkets, setShowMarkets] = useState(false);
+  const [showConverter, setShowConverter] = useState(false);
+  const [rates, setRates] = useState<{ USD: number; EUR: number }>({ USD: 5.5, EUR: 6.0 });
+  const [converterDirection, setConverterDirection] = useState<"BRL_TO_FOREIGN" | "FOREIGN_TO_BRL">("BRL_TO_FOREIGN");
+  const [converterCurrency, setConverterCurrency] = useState<"USD" | "EUR">("USD");
+  const [converterInput, setConverterInput] = useState<string>("");
+
+  useEffect(() => {
+    fetch("https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL")
+      .then(res => res.json())
+      .then(data => {
+        if (data.USDBRL && data.EURBRL) {
+          setRates({
+            USD: parseFloat(data.USDBRL.ask),
+            EUR: parseFloat(data.EURBRL.ask)
+          });
+        }
+      })
+      .catch(err => console.error("Failed to fetch rates:", err));
+  }, []);
 
   const safeEval = (expr: string) => {
     try {
@@ -834,16 +853,114 @@ function StandardCalculator({
       className="bg-[#1A1B1E] border border-[#2D2E33] rounded-[16px] flex flex-col overflow-hidden shadow-2xl"
     >
       <div className="p-4 border-b border-[#2D2E33] flex justify-between items-center bg-white/5">
-        <button
-          onClick={() => setShowMarkets(!showMarkets)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer active:scale-95 text-[#0F0F11] font-bold uppercase tracking-wider text-[11px]"
-          style={{ backgroundColor: currentTheme }}
-        >
-          {showMarkets ? "FECHAR" : "SEJA UM COLABORADOR"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setShowMarkets(!showMarkets);
+              setShowConverter(false);
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer active:scale-95 font-bold uppercase tracking-wider text-[11px] ${showMarkets ? "bg-[#3E3F44] text-white" : "text-[#0F0F11]"}`}
+            style={!showMarkets ? { backgroundColor: currentTheme } : undefined}
+          >
+            {showMarkets ? "FECHAR" : "SEJA UM COLABORADOR"}
+          </button>
+          
+          <button
+            onClick={() => {
+              setShowConverter(!showConverter);
+              setShowMarkets(false);
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-[8px] transition-colors cursor-pointer active:scale-95 font-bold uppercase tracking-wider text-[11px] ${showConverter ? "text-[#0F0F11]" : "bg-[#2D2E33] text-white hover:bg-[#3E3F44]"}`}
+            style={showConverter ? { backgroundColor: currentTheme } : undefined}
+          >
+            <ArrowRightLeft size={14} /> CONVERSOR
+          </button>
+        </div>
       </div>
 
-      {showMarkets ? (
+      {showConverter ? (
+        <div className="p-6 flex flex-col gap-6">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-bold text-white">Conversor</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConverterCurrency("USD")}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${converterCurrency === "USD" ? "text-[#0F0F11]" : "bg-[#2D2E33] text-white"}`}
+                style={converterCurrency === "USD" ? { backgroundColor: currentTheme } : undefined}
+              >
+                DÓLAR
+              </button>
+              <button
+                onClick={() => setConverterCurrency("EUR")}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${converterCurrency === "EUR" ? "text-[#0F0F11]" : "bg-[#2D2E33] text-white"}`}
+                style={converterCurrency === "EUR" ? { backgroundColor: currentTheme } : undefined}
+              >
+                EURO
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 bg-black border border-[#2D2E33] rounded-xl p-4 flex flex-col items-center justify-center gap-2">
+                <span className="text-[#A1A1AA] text-[10px] font-bold uppercase tracking-wider">
+                  {converterDirection === "BRL_TO_FOREIGN" ? "Real (R$)" : (converterCurrency === "USD" ? "Dólar (US$)" : "Euro (€)")}
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={converterInput}
+                  onChange={(e) => setConverterInput(e.target.value.replace(/[^0-9.,]/g, ""))}
+                  placeholder="0,00"
+                  className="bg-transparent w-full text-center text-2xl font-mono font-bold text-white outline-none"
+                  style={{ color: currentTheme }}
+                />
+              </div>
+
+              <button
+                onClick={() => setConverterDirection(d => d === "BRL_TO_FOREIGN" ? "FOREIGN_TO_BRL" : "BRL_TO_FOREIGN")}
+                className="w-10 h-10 rounded-full bg-[#2D2E33] hover:bg-[#3E3F44] flex items-center justify-center text-white shrink-0 active:scale-95 transition-all"
+              >
+                <ArrowRightLeft size={16} />
+              </button>
+
+              <div className="flex-1 bg-black border border-[#2D2E33] rounded-xl p-4 flex flex-col items-center justify-center gap-2">
+                <span className="text-[#A1A1AA] text-[10px] font-bold uppercase tracking-wider">
+                  {converterDirection === "BRL_TO_FOREIGN" ? (converterCurrency === "USD" ? "Dólar (US$)" : "Euro (€)") : "Real (R$)"}
+                </span>
+                <div className="w-full text-center text-2xl font-mono font-bold truncate text-white">
+                  {(() => {
+                    const valStr = converterInput.replace(/\./g, "").replace(",", ".");
+                    const val = parseFloat(valStr || "0");
+                    const rate = rates[converterCurrency] || 1;
+                    if (isNaN(val)) return "0,00";
+                    if (converterDirection === "BRL_TO_FOREIGN") {
+                      return (val / rate).toFixed(2).replace(".", ",");
+                    } else {
+                      return (val * rate).toFixed(2).replace(".", ",");
+                    }
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-center mt-2 bg-white/5 py-2 rounded-lg">
+            <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider">
+              1 {converterCurrency === "USD" ? "Dólar" : "Euro"} = R$ {rates[converterCurrency].toFixed(2).replace(".", ",")}
+            </span>
+          </div>
+          
+          <div className="flex justify-center mt-2">
+            <button 
+              onClick={() => setShowConverter(false)}
+              className="px-8 py-3 rounded-xl font-bold text-white bg-[#2D2E33] hover:bg-[#3E3F44] transition-colors cursor-pointer w-full"
+            >
+              FECHAR
+            </button>
+          </div>
+        </div>
+      ) : showMarkets ? (
         <div className="p-6 flex flex-col gap-6">
           <div className="text-center flex flex-col gap-4">
             <h3 className="text-lg font-bold text-[var(--tc)]">💚 Apoie este projeto</h3>
